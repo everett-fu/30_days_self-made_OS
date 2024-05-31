@@ -355,7 +355,27 @@ void HariMain(void) {
 				if (mouse_decode(&mdec, i - 512) != 0) {
 					if ((mdec.btn & 0x01) != 0) {
 						s[1] = 'L';
-						sheet_slide(sht_win, mx - 80, my -8);
+//						sheet_slide(sht_win, mx - 80, my -8);
+
+						int x, y;
+						int j;
+						struct SHEET *sht;
+						// 从上往下遍历窗口
+						for (j = shtctl->top -1; j > 0; j--) {
+							sht = shtctl->sheets[j];
+							// 计算鼠标在该图层的偏移量
+							x = mx - sht->vx0;
+							y = my - sht->vy0;
+							// 如果鼠标在窗口范围内
+							if (x >= 0 && x <= sht->bxsize && y >= 0 && y <= sht->bysize) {
+								// 不是透明区域
+								if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
+									// 设置图层高度为除鼠标的最高层
+									sheet_updown(sht, shtctl->top -1);
+									break;
+								}
+							}
+						}
 					}
 					if ((mdec.btn & 0x02) != 0) {
 						s[3] = 'R';
