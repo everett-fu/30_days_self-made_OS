@@ -1,4 +1,4 @@
-; hello-os
+; haribote-ipl
 ; TAB = 4
 
 ORG 0x7c00
@@ -7,7 +7,7 @@ ORG 0x7c00
 JMP entry
 DB  0x90
 
-DB  "HELLOIPL"                  ;启动区的名称可以是任意的字符串（8字符）
+DB  "HARIBOTE"                  ;启动区的名称可以是任意的字符串（8字符）
 DW  512                         ;每扇区字节数（必须为512字节）
 DB  1                           ;每簇扇区数（必须为1个扇区）
 DW  1                           ;Boot占几个扇区（一般从第一个扇区开始）
@@ -34,8 +34,26 @@ entry:
     MOV SS, AX
     MOV SP, 0x7c00
     MOV DS, AX
-    MOV ES, AX
 
+    MOV AX, 0x0820
+    MOV ES, AX
+    MOV BX, 0
+    MOV DL, 0x00                ;驱动器号
+    MOV DH, 0                   ;磁头0
+    MOV CH, 0                   ;柱面0
+    MOV CL, 2                   ;扇区2
+
+    MOV AH, 0x02                ;读盘
+    MOV AL, 1                   ;操作1个扇区
+    INT 0x13                    ;如果有错误将CF=1，AH设置为0，AL为错误码，没有错误CF=0，CF为进位标志
+    JC  error                   ;如果有进位标志，则证明有问题，跳转到错误处理
+    JMP fin
+
+fin:
+    HLT
+    JMP fin
+
+error:
     MOV SI, msg
 putloop:
     MOV AL, [SI]
@@ -46,14 +64,11 @@ putloop:
     MOV BX, 15
     INT 0x10
     JMP putloop
-fin:
-    HLT
-    JMP fin
 
 ; 信息显示部分
 msg:
     DB  0x0a, 0x0a
-    DB  "Hello, world"
+    DB  "load error"
     DB  0x0a
     DB  0
 
