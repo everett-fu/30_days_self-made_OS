@@ -35,6 +35,7 @@ entry:
     MOV SP, 0x7c00
     MOV DS, AX
 
+;读磁盘
     MOV AX, 0x0820
     MOV ES, AX
     MOV BX, 0
@@ -42,14 +43,13 @@ entry:
     MOV DH, 0                   ;磁头0
     MOV CH, 0                   ;柱面0
     MOV CL, 2                   ;扇区2
-
+readloop:
     MOV SI, 0                   ;记录失败的次数
-
 retry:
     MOV AH, 0x02                ;读盘
     MOV AL, 1                   ;操作1个扇区
     INT 0x13                    ;如果有错误将CF=1，AH设置为0，AL为错误码，没有错误CF=0，CF为进位标志
-    JNC fin                     ;如果没有错误，跳转到fin
+    JNC next                     ;如果没有错误，跳转到fin
     ;有错误，计数加一，如果失败次数超过5次，跳转到错误处理
     ADD SI, 1
     CMP SI, 5
@@ -59,6 +59,12 @@ retry:
     MOV DL, 0x00
     INT 0x13
     JMP retry
+
+next:
+    ADD BX, 0x0200
+    ADD CL, 1
+    CMP CL, 18
+    JBE readloop
 
 fin:
     HLT
