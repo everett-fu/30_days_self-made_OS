@@ -43,11 +43,22 @@ entry:
     MOV CH, 0                   ;柱面0
     MOV CL, 2                   ;扇区2
 
+    MOV SI, 0                   ;记录失败的次数
+
+retry:
     MOV AH, 0x02                ;读盘
     MOV AL, 1                   ;操作1个扇区
     INT 0x13                    ;如果有错误将CF=1，AH设置为0，AL为错误码，没有错误CF=0，CF为进位标志
-    JC  error                   ;如果有进位标志，则证明有问题，跳转到错误处理
-    JMP fin
+    JNC fin                     ;如果没有错误，跳转到fin
+    ;有错误，计数加一，如果失败次数超过5次，跳转到错误处理
+    ADD SI, 1
+    CMP SI, 5
+    JAE error                   ;如果失败次数超过5次，跳转到错误处理
+    ;复位磁盘
+    MOV AH, 0x00
+    MOV DL, 0x00
+    INT 0x13
+    JMP retry
 
 fin:
     HLT
