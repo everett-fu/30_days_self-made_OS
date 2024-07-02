@@ -65,6 +65,14 @@ next:
     ADD CL, 1
     CMP CL, 18
     JBE readloop
+    MOV CL, 1
+    ADD DH, 1
+    CMP DH, 2
+    JB  readloop
+    ADD CH, 1
+    MOV DH, 0
+    CMP CH, 10
+    JB  readloop
 
 fin:
     HLT
