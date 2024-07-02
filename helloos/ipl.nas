@@ -1,6 +1,8 @@
 ; haribote-ipl
 ; TAB = 4
 
+CYLS    EQU 10
+
 ORG 0x7c00
 
 ; 以下这段是标准FAT12格式软盘专用的引导扇区代码
@@ -24,7 +26,7 @@ DB  0                           ;驱动器号（一般为0）
 DB  0                           ;保留字节（一般为0）
 DB  0x29                        ;扩展引导标志（一般为0x29）
 DD  0x12345678                  ;卷序列号（随便写）
-DB  "HELLO-OS   "               ;卷标（随便写）（11字节）
+DB  "HARIBOTEOS "               ;卷标（随便写）（11字节）
 DB  "FAT12   "                  ;文件系统类型（必须为"FAT12"）（8字节）
 RESB    18
 
@@ -38,8 +40,7 @@ entry:
 ;读磁盘
     MOV AX, 0x0820
     MOV ES, AX
-    MOV BX, 0
-    MOV DL, 0x00                ;驱动器号
+    ;MOV BX, 0
     MOV DH, 0                   ;磁头0
     MOV CH, 0                   ;柱面0
     MOV CL, 2                   ;扇区2
@@ -48,12 +49,14 @@ readloop:
 retry:
     MOV AH, 0x02                ;读盘
     MOV AL, 1                   ;操作1个扇区
+    MOV BX, 0
+    MOV DL, 0x00                ;驱动器号
     INT 0x13                    ;如果有错误将CF=1，AH设置为0，AL为错误码，没有错误CF=0，CF为进位标志
     JNC next                     ;如果没有错误，跳转到fin
     ;有错误，计数加一，如果失败次数超过5次，跳转到错误处理
     ADD SI, 1
     CMP SI, 5
-    JAE error                   ;如果失败次数超过5次，跳转到错误处理
+    JAE error                   ;如果失败次数>=5次，跳转到错误处理
     ;复位磁盘
     MOV AH, 0x00
     MOV DL, 0x00
@@ -61,7 +64,10 @@ retry:
     JMP retry
 
 next:
-    ADD BX, 0x0200
+    ;ADD BX, 0x200
+    MOV AX, ES
+    ADD AX, 0x0020
+    MOV ES, AX
     ADD CL, 1
     CMP CL, 18
     JBE readloop
@@ -69,14 +75,13 @@ next:
     ADD DH, 1
     CMP DH, 2
     JB  readloop
-    ADD CH, 1
     MOV DH, 0
-    CMP CH, 10
+    ADD CH, 1
+    CMP CH, CYLS
     JB  readloop
 
-fin:
-    HLT
-    JMP fin
+    MOV [0x0ff0], CH
+    JMP 0xc200
 
 error:
     MOV SI, msg
@@ -89,6 +94,10 @@ putloop:
     MOV BX, 15
     INT 0x10
     JMP putloop
+
+fin:
+    HLT
+    JMP fin
 
 ; 信息显示部分
 msg:
