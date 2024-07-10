@@ -7,16 +7,10 @@
 
 ; 制作目标文件的信息
 [FILE "naskfunc.nas"]                       ; 制作目标文件的文件名
-    GLOBAL    _io_hlt, _write_mem8          ; 程序中包含的函数名
+    GLOBAL    _io_hlt                       ; 程序中包含的函数名
 
 ; 函数定义
 [SECTION .text]
 _io_hlt:                                    ; 等待中断的函数
     HLT                                     ; 休眠
     RET                                     ; 返回
-
-_write_mem8:                                ; void write_mem8(int addr, int data);
-    MOV ECX, [ESP+4]                        ; [ESP+4]中存放的是地址，将其取出放入ECX
-    MOV AL, [ESP+8]                         ; [ESP+8]中存放的是数据，将其取出放入AL
-    MOV [ECX], AL
-    RET
