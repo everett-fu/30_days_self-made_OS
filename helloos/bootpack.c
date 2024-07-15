@@ -6,23 +6,44 @@ void io_store_eflags(int eflags);
 
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
+void boxfile8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
+
+#define COL8_000000 0			// 0: 黑
+#define COL8_FF0000 1			// 1: 亮红
+#define COL8_00FF00 2			// 2: 亮緑
+#define COL8_FFFF00 3			// 3: 亮黄
+#define COL8_0000FF 4			// 4: 亮蓝
+#define COL8_FF00FF 5			// 5: 亮紫
+#define COL8_00FFFF 6			// 6: 浅亮蓝
+#define COL8_FFFFFF 7			// 7: 白
+#define COL8_C6C6C6 8			// 8: 亮灰
+#define COL8_840000 9			// 9: 暗红
+#define COL8_008400 10			// 10: 暗緑
+#define COL8_848400 11			// 11: 暗黄
+#define COL8_000084 12			// 12: 暗青
+#define COL8_840084 13			// 13: 暗紫
+#define COL8_008484 14			// 14: 浅暗蓝
+#define COL8_848484 15			// 15: 暗灰
 
 void HariMain(void)
 {
-	int i;
-	char *p;
+	unsigned char *p;
 
 	init_palette();	// 设定调色板
 
-	for (i = 0xa0000; i <= 0xaffff; i++) {
-		p = (char *)i;
-		*p = i & 0x0f;
-//		*p = 15;
-	}
+	p = (char *)0xa0000;				// 设置显存地址
+
+	boxfile8(p, 320, COL8_FF0000, 20, 20, 120, 120);
+	boxfile8(p, 320, COL8_FFFFFF, 70, 50, 170, 150);
+	boxfile8(p, 320, COL8_848484, 120, 80, 220, 180);
+
 	for (;;)
 		io_hlt();
 }
 
+/**
+ * 初始化调色板
+ */
 void init_palette(void) {
 	static unsigned char table_rgb[16 * 3] = {
 		0x00, 0x00, 0x00,		// 黑
@@ -48,9 +69,9 @@ void init_palette(void) {
 
 /**
  * 设置调色板
- * @param start
- * @param end
- * @param rgb
+ * @param start		开始
+ * @param end		结束
+ * @param rgb		rgb
  */
 void set_palette(int start, int end, unsigned char *rgb) {
 	int i, eflags;
@@ -60,6 +81,7 @@ void set_palette(int start, int end, unsigned char *rgb) {
 	// 屏蔽中断
 	io_cli();
 	io_out8(0x03c8, start);
+	// 导入0到15号颜色
 	for (i = start; i <= end; i++) {
 		io_out8(0x03c9, rgb[0] / 4);
 		io_out8(0x03c9, rgb[1] / 4);
@@ -68,5 +90,25 @@ void set_palette(int start, int end, unsigned char *rgb) {
 	}
 	// 恢复中断
 	io_store_eflags(eflags);
+	return;
+}
+
+/**
+ * 绘制纯色矩形
+ * @param vram		显存地址
+ * @param xsize		x轴大小
+ * @param c			颜色
+ * @param x0		x0
+ * @param y0		y0
+ * @param x1		x1
+ * @param y1		y1
+ */
+void boxfile8(unsigned char *vram, int xsize, unsigned  char c, int x0, int y0, int x1, int y1) {
+	int x, y;
+	for (y = y0; y <= y1; y++) {
+		for (x = x0; x <= x1; x++) {
+			vram[y * xsize + x] = c;
+		}
+	}
 	return;
 }
