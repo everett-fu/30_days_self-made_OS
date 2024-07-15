@@ -6,36 +6,53 @@ void io_store_eflags(int eflags);
 
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
-void boxfile8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
 
-#define COL8_000000 0			// 0: 黑
-#define COL8_FF0000 1			// 1: 亮红
-#define COL8_00FF00 2			// 2: 亮緑
-#define COL8_FFFF00 3			// 3: 亮黄
-#define COL8_0000FF 4			// 4: 亮蓝
-#define COL8_FF00FF 5			// 5: 亮紫
-#define COL8_00FFFF 6			// 6: 浅亮蓝
-#define COL8_FFFFFF 7			// 7: 白
-#define COL8_C6C6C6 8			// 8: 亮灰
-#define COL8_840000 9			// 9: 暗红
-#define COL8_008400 10			// 10: 暗緑
-#define COL8_848400 11			// 11: 暗黄
-#define COL8_000084 12			// 12: 暗青
-#define COL8_840084 13			// 13: 暗紫
-#define COL8_008484 14			// 14: 浅暗蓝
-#define COL8_848484 15			// 15: 暗灰
+#define COL8_000000 0            // 0: 黑
+#define COL8_FF0000 1            // 1: 亮红
+#define COL8_00FF00 2            // 2: 亮緑
+#define COL8_FFFF00 3            // 3: 亮黄
+#define COL8_0000FF 4            // 4: 亮蓝
+#define COL8_FF00FF 5            // 5: 亮紫
+#define COL8_00FFFF 6            // 6: 浅亮蓝
+#define COL8_FFFFFF 7            // 7: 白
+#define COL8_C6C6C6 8            // 8: 亮灰
+#define COL8_840000 9            // 9: 暗红
+#define COL8_008400 10            // 10: 暗緑
+#define COL8_848400 11            // 11: 暗黄
+#define COL8_000084 12            // 12: 暗青
+#define COL8_840084 13            // 13: 暗紫
+#define COL8_008484 14            // 14: 浅暗蓝
+#define COL8_848484 15            // 15: 暗灰
 
-void HariMain(void)
-{
-	unsigned char *p;
+void HariMain(void) {
+	unsigned char *vram;
+	int xsize, ysize;
 
-	init_palette();	// 设定调色板
+	init_palette();
+	vram = (unsigned char *) 0xa0000;
+	xsize = 320;
+	ysize = 200;
 
-	p = (char *)0xa0000;				// 设置显存地址
+	// 绘制背景
+	boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29);
+	boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 28, xsize - 1, ysize - 28);
+	boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 27, xsize - 1, ysize - 27);
+	boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 26, xsize - 1, ysize - 1);
 
-	boxfile8(p, 320, COL8_FF0000, 20, 20, 120, 120);
-	boxfile8(p, 320, COL8_FFFFFF, 70, 50, 170, 150);
-	boxfile8(p, 320, COL8_848484, 120, 80, 220, 180);
+	//
+	boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 24, 59, ysize - 24);
+	boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 24, 2, ysize - 4);
+	boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 59, ysize - 4);
+	boxfill8(vram, xsize, COL8_848484, 59, ysize - 23, 59, ysize - 5);
+	boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 59, ysize - 3);
+	boxfill8(vram, xsize, COL8_000000, 60, ysize - 24, 60, ysize - 3);
+
+	//
+	boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 24, xsize - 4, ysize - 24);
+	boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 23, xsize - 47, ysize - 4);
+	boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize - 3, xsize - 4, ysize - 3);
+	boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 24, xsize - 3, ysize - 3);
 
 	for (;;)
 		io_hlt();
@@ -46,22 +63,22 @@ void HariMain(void)
  */
 void init_palette(void) {
 	static unsigned char table_rgb[16 * 3] = {
-		0x00, 0x00, 0x00,		// 黑
-		0xff, 0x00, 0x00,		// 亮红
-		0x00, 0xff, 0x00,		// 亮緑
-		0xff, 0xff, 0x00,		// 亮黄
-		0x00, 0x00, 0xff,	// 亮蓝
-		0xff, 0x00, 0xff,	// 亮紫
-		0x00, 0xff, 0xff,	// 浅亮蓝
-		0xff, 0xff, 0xff,	// 白
-		0xc6, 0xc6, 0xc6,	// 亮灰
-		0x84, 0x00, 0x00,	// 暗红
-		0x00, 0x84, 0x00,	// 暗緑
-		0x84, 0x84, 0x00,	// 暗黄
-		0x00, 0x00, 0x84,	// 暗青
-		0x84, 0x00, 0x84,	// 暗紫
-		0x00, 0x84, 0x84,	// 浅暗蓝
-		0x84, 0x84, 0x84		// 暗灰
+		0x00, 0x00, 0x00,        // 黑
+		0xff, 0x00, 0x00,        // 亮红
+		0x00, 0xff, 0x00,        // 亮緑
+		0xff, 0xff, 0x00,        // 亮黄
+		0x00, 0x00, 0xff,    // 亮蓝
+		0xff, 0x00, 0xff,    // 亮紫
+		0x00, 0xff, 0xff,    // 浅亮蓝
+		0xff, 0xff, 0xff,    // 白
+		0xc6, 0xc6, 0xc6,    // 亮灰
+		0x84, 0x00, 0x00,    // 暗红
+		0x00, 0x84, 0x00,    // 暗緑
+		0x84, 0x84, 0x00,    // 暗黄
+		0x00, 0x00, 0x84,    // 暗青
+		0x84, 0x00, 0x84,    // 暗紫
+		0x00, 0x84, 0x84,    // 浅暗蓝
+		0x84, 0x84, 0x84        // 暗灰
 	};
 	set_palette(0, 15, table_rgb);
 	return;
@@ -103,7 +120,7 @@ void set_palette(int start, int end, unsigned char *rgb) {
  * @param x1		x1
  * @param y1		y1
  */
-void boxfile8(unsigned char *vram, int xsize, unsigned  char c, int x0, int y0, int x1, int y1) {
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1) {
 	int x, y;
 	for (y = y0; y <= y1; y++) {
 		for (x = x0; x <= x1; x++) {
