@@ -8,6 +8,7 @@ void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
 void init_screen(unsigned char *vram, int xsize, int ysize);
+void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font);
 
 #define COL8_000000 0            // 0: 黑
 #define COL8_FF0000 1            // 1: 亮红
@@ -26,24 +27,31 @@ void init_screen(unsigned char *vram, int xsize, int ysize);
 #define COL8_008484 14            // 14: 浅暗蓝
 #define COL8_848484 15            // 15: 暗灰
 
+// 创建一个结构体，用来保存启动信息
 struct BOOTINFO {
+	// cyls: 启动区信息, leds: 键盘状态, vmode: 颜色数目, reserve: 颜色位数
 	char cyls, leds, vmode, reserve;
+	// scrnx: x分辨率, scrny: y分辨率
 	short scrnx, scrny;
+	// 显存地址
 	unsigned char *vram;
 };
 
 void HariMain(void) {
-	unsigned char *vram;
-	int xsize, ysize;
-	struct BOOTINFO *binfo;
+	struct BOOTINFO *binfo = (struct BOOTINFO *) 0x0ff0;
 
+	static char font_A[16] = {
+		0x00, 0x18, 0x18, 0x18, 0x18, 0x24, 0x24, 0x24,
+		0x24, 0x7e, 0x42, 0x42, 0x42, 0xe7, 0x00, 0x00
+	};
+
+	// 初始化调色板
 	init_palette();
-	binfo = (struct BOOTINFO *) 0x0ff0;
-	xsize = (*binfo).scrnx;
-	ysize = (*binfo).scrny;
-	vram = (*binfo).vram;
 
-	init_screen(vram, xsize, ysize);
+	// 显示类Windows效果
+	init_screen(binfo->vram, binfo->scrnx, binfo->scrny);
+
+	putfont8(binfo->vram, binfo->scrnx, 10, 10, COL8_FFFFFF, font_A);
 
 	for (;;)
 		io_hlt();
@@ -121,6 +129,12 @@ void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, i
 	return;
 }
 
+/**
+ * 绘制类Windows效果
+ * @param vram		显存地址
+ * @param xsize		宽
+ * @param ysize		高
+ */
 void init_screen(unsigned char *vram, int xsize, int ysize) {
 	// 绘制背景
 	boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29);
@@ -141,4 +155,31 @@ void init_screen(unsigned char *vram, int xsize, int ysize) {
 	boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 23, xsize - 47, ysize - 4);
 	boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize - 3, xsize - 4, ysize - 3);
 	boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 24, xsize - 3, ysize - 3);
+}
+
+/**
+ * 绘制字符
+ * @param vram		显存地址
+ * @param xsize		屏幕的宽度
+ * @param x			起始位置x
+ * @param y			起始位置y
+ * @param c			颜色
+ * @param font		字体
+ */
+void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font) {
+	int i;
+	unsigned char *p;
+	// 判断字符的每一行
+	for (i = 0; i < 16; i++) {
+		p = vram + (y + i) * xsize + x;
+		// 判断字符的每一位是否为1，如果是则显示颜色
+		char num = font[i];
+		int j;
+		for (j = 0; j < 8; j++, num = num >> 1) {
+			if ((num & 1) == 1) {
+				p[j] = c;
+			}
+
+		}
+	}
 }
