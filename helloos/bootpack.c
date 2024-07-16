@@ -9,6 +9,7 @@ void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
 void init_screen(unsigned char *vram, int xsize, int ysize);
 void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font);
+void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s);
 
 #define COL8_000000 0            // 0: 黑
 #define COL8_FF0000 1            // 1: 亮红
@@ -40,21 +41,16 @@ struct BOOTINFO {
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) 0x0ff0;
 
-	// 导入外部字符集
-	extern char hankaku[4096];
-
 	// 初始化调色板
 	init_palette();
 
 	// 显示类Windows效果
 	init_screen(binfo->vram, binfo->scrnx, binfo->scrny);
 
-	putfont8(binfo->vram, binfo->scrnx, 8, 8, COL8_FFFFFF, hankaku + 'A' * 16);
-	putfont8(binfo->vram, binfo->scrnx, 16, 8, COL8_FFFFFF, hankaku + 'B' * 16);
-	putfont8(binfo->vram, binfo->scrnx, 24, 8, COL8_FFFFFF, hankaku + 'C' * 16);
-	putfont8(binfo->vram, binfo->scrnx, 40, 8, COL8_FFFFFF, hankaku + '1' * 16);
-	putfont8(binfo->vram, binfo->scrnx, 48, 8, COL8_FFFFFF, hankaku + '2' * 16);
-	putfont8(binfo->vram, binfo->scrnx, 56, 8, COL8_FFFFFF, hankaku + '3' * 16);
+	// 显示字符串
+	putfonts8_asc(binfo->vram, binfo->scrnx,  8,  8, COL8_FFFFFF, "ABC 123");
+	putfonts8_asc(binfo->vram, binfo->scrnx, 31, 31, COL8_000000, "Haribote OS.");
+	putfonts8_asc(binfo->vram, binfo->scrnx, 30, 30, COL8_FFFFFF, "Haribote OS.");
 
 	for (;;)
 		io_hlt();
@@ -184,5 +180,15 @@ void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font) 
 			}
 
 		}
+	}
+}
+
+void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s) {
+	// 导入字符集
+	extern char hankaku[4096];
+	// 循环字符串，一直到字符串结束
+	for (; *s != 0x00; s++) {
+		putfont8(vram, xsize, x, y, c, hankaku + *s * 16);
+		x += 8;
 	}
 }
