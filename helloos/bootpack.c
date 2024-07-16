@@ -28,11 +28,16 @@ void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, i
 void HariMain(void) {
 	unsigned char *vram;
 	int xsize, ysize;
+	short *binfo_scrnx, *binfo_scrny;
+	int *binfo_vram;
 
 	init_palette();
-	vram = (unsigned char *) 0xa0000;
-	xsize = 320;
-	ysize = 200;
+	binfo_scrnx = (short *)0x0ff4;
+	binfo_scrny = (short *)0x0ff6;
+	binfo_vram = (int *)0x0ff8;
+	xsize = *binfo_scrnx;
+	ysize = *binfo_scrny;
+	vram = (unsigned char *) *binfo_vram;
 
 	// 绘制背景
 	boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29);
