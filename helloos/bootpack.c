@@ -183,6 +183,15 @@ void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font) 
 	}
 }
 
+/**
+ * 绘制字符串
+ * @param vram		显存地址
+ * @param xsize		屏幕的宽度
+ * @param x			起始位置x
+ * @param y			起始位置y
+ * @param c			颜色
+ * @param s			输入的字符串
+ */
 void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s) {
 	// 导入字符集
 	extern char hankaku[4096];
