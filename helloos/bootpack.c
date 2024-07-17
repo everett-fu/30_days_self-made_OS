@@ -12,6 +12,8 @@ void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, i
 void init_screen(unsigned char *vram, int xsize, int ysize);
 void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font);
 void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s);
+void init_mouse_cursor8(char *mouse, char bc);
+void putblock8_8(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0, char *buf, int bxsize);
 
 #define COL8_000000 0            // 0: 黑
 #define COL8_FF0000 1            // 1: 亮红
@@ -42,7 +44,8 @@ struct BOOTINFO {
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) 0x0ff0;
-    char s[40];
+    char s[40], mcursor[16 * 16];
+    int mx, my;
 
 	// 初始化调色板
 	init_palette();
@@ -50,13 +53,20 @@ void HariMain(void) {
 	// 显示类Windows效果
 	init_screen(binfo->vram, binfo->scrnx, binfo->scrny);
 
-	// 显示字符串
-	putfonts8_asc(binfo->vram, binfo->scrnx,  8,  8, COL8_FFFFFF, "ABC 123");
-	putfonts8_asc(binfo->vram, binfo->scrnx, 31, 31, COL8_000000, "Haribote OS.");
-	putfonts8_asc(binfo->vram, binfo->scrnx, 30, 30, COL8_FFFFFF, "Haribote OS.");
+    // 初始化鼠标指针
+    init_mouse_cursor8(mcursor, COL8_008484);
+    // 计算显示中间位置
+    mx = (binfo->scrnx - 16) / 2;
+    my = (binfo->scrny - 28 - 16) / 2;
+    putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
 
-    sprintf(s, "scrnx = %d", binfo->scrnx);
-    putfonts8_asc(binfo->vram, binfo->scrnx, 16, 64, COL8_FFFFFF, s);
+	// 显示字符串
+    putfonts8_asc(binfo->vram, binfo->scrnx,  8,  8, COL8_FFFFFF, "Welcome to my OS.");
+
+    // 显示鼠标坐标
+    sprintf(s, "(%d, %d)", mx, my);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 8, 24, COL8_FFFFFF, s);
+
 
 	for (;;)
 		io_hlt();
@@ -200,10 +210,74 @@ void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font) 
  */
 void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s) {
 	// 导入字符集
-	extern char hankaku[4096];
+    extern char hankaku[4096];
 	// 循环字符串，一直到字符串结束
 	for (; *s != 0x00; s++) {
 		putfont8(vram, xsize, x, y, c, hankaku + *s * 16);
 		x += 8;
 	}
+}
+
+/**
+ * 初始化鼠标指针
+ * @param mouse		鼠标指针地址
+ * @param bc		背景颜色
+ */
+void init_mouse_cursor8(char *mouse, char bc) {
+    static char cursor[16][16] = {
+        "**************..",
+        "*OOOOOOOOOOO*...",
+        "*OOOOOOOOOO*....",
+        "*OOOOOOOOO*.....",
+        "*OOOOOOOO*......",
+        "*OOOOOOO*.......",
+        "*OOOOOOO*.......",
+        "*OOOOOOOO*......",
+        "*OOOO**OOO*.....",
+        "*OOO*..*OOO*....",
+        "*OO*....*OOO*...",
+        "*O*......*OOO*..",
+        "**........*OOO*.",
+        "*..........*OOO*",
+        "............*OO*",
+        ".............***"
+    };
+
+    int x, y;
+
+    for (x = 0; x < 16; x++) {
+        for (y = 0; y <16; y++) {
+            if (cursor[x][y] == '*') {
+                mouse[x * 16 + y] = COL8_000000;
+            }
+            else if (cursor[x][y] == 'O') {
+                mouse[x * 16 + y] = COL8_FFFFFF;
+            }
+            else {
+                mouse[x * 16 +y] = bc;
+            }
+        }
+    }
+    return;
+}
+
+/**
+ * 绘制鼠标指针
+ * @param vram		显存地址
+ * @param vxsize	屏幕的宽度
+ * @param pxsize	鼠标指针的宽度
+ * @param pysize	鼠标指针的高度
+ * @param px0		鼠标指针的x坐标
+ * @param py0		鼠标指针的y坐标
+ * @param buf		鼠标指针的颜色
+ * @param bxsize	鼠标指针的宽度
+ */
+void putblock8_8(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0, char *buf, int bxsize) {
+    int x, y;
+    for (y = 0; y < pysize; y++) {
+        for (x = 0; x < pxsize; x++) {
+            vram[(py0 + y) * vxsize + (px0 + x)] = buf[y * bxsize + x];
+        }
+    }
+    return;
 }
