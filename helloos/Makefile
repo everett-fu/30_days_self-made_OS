@@ -19,7 +19,6 @@ DEL			= del
 default :
 	$(MAKE) run
 
-
 ipl10.bin : ipl10.nas Makefile
 	$(NASK) ipl10.nas ipl10.bin ipl10.lst
 
@@ -44,9 +43,27 @@ hankaku.bin : hankaku.txt Makefile
 hankaku.obj : hankaku.bin Makefile
 	$(BIN2OBJ) hankaku.bin hankaku.obj _hankaku
 
-bootpack.bim : bootpack.obj naskfunc.obj hankaku.obj Makefile
+graphic.gas : graphic.c Makefile
+	$(CC1) -o graphic.gas graphic.c
+
+graphic.nas : graphic.gas Makefile
+	$(GAS2NASK) graphic.gas graphic.nas
+
+graphic.obj : graphic.nas Makefile
+	$(NASK) graphic.nas graphic.obj graphic.lst
+
+dsctbl.gas : dsctbl.c Makefile
+	$(CC1) -o dsctbl.gas dsctbl.c
+
+dsctbl.nas : dsctbl.gas Makefile
+	$(GAS2NASK) dsctbl.gas dsctbl.nas
+
+dsctbl.obj : dsctbl.nas Makefile
+	$(NASK) dsctbl.nas dsctbl.obj dsctbl.lst
+
+bootpack.bim : bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj Makefile
 	$(OBJ2BIM) @$(RULEFILE) out:bootpack.bim stack:3136k map:bootpack.map \
-		bootpack.obj naskfunc.obj hankaku.obj
+		bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj
 
 bootpack.hrb : bootpack.bim Makefile
 	$(BIM2HRB) bootpack.bim bootpack.hrb 0
@@ -82,6 +99,8 @@ clean :
 	-$(DEL)	bootpack.bim
 	-$(DEL)	bootpack.hrb
 	-$(DEL) haribote.sys
+	-$(DEL) graphic.nas
+	-$(DEL) dsctbl.nas
 
 src_only :
 	$(MAKE) clean
