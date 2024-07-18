@@ -1,0 +1,58 @@
+/*
+ * Filename: int.c
+ * Author: everett
+ * Created: 24-7-18
+ * Last Modified: 24-7-18
+ * Description:
+ *   This file contains the implementation of int. The program
+ *   demonstrates basic functionality and serves as an example.
+ *
+ * Functions:
+ *   - main: The entry point of the program.
+ *   - ${Function1}: Description of the function.
+ *   - ${Function2}: Description of the function.
+ *
+ * Usage:
+ *   To compile: gcc -o int int.c
+ *   To run: ./ int
+ */
+/*
+ * Filename: int.c
+ * Author: everett.fu
+ * Created: 24-7-18
+ * Last Modified: 24-7-18
+ * Description:
+ *   This file contains the implementation of int. The program
+ *   demonstrates basic functionality and serves as an example.
+ *
+ * Functions:
+ *   - main: The entry point of the program.
+ *   - ${Function1}: Description of the function.
+ *   - ${Function2}: Description of the function.
+ *
+ * Usage:
+ *   To compile: gcc -o int int.c
+ *   To run: ./ int
+ */
+
+#include "bootpack.h"
+
+void init_pic(void) {
+	io_out8(PIC0_IMR, 0xff);					// 禁止主PIC所有中断
+	io_out8(PIC1_IMR, 0xff);					// 禁止从PIC所有中断
+
+	io_out8(PIC0_ICW1, 0x11);					// 边沿触发模式
+	io_out8(PIC0_ICW2, 0x20);					// IRQ0-7由INT20-27接收
+	io_out8(PIC0_ICW3, 1 << 2);					// 设定PIC1由IRQ2连接
+	io_out8(PIC0_ICW4, 0x01);					// 无缓冲区模式
+
+	io_out8(PIC1_ICW1, 0x11);					// 边沿触发模式
+	io_out8(PIC1_ICW2, 0x28);					// IRQ8-15由INT28-2f接收
+	io_out8(PIC1_ICW3, 2);						// 设定PIC1由IRQ2连接
+	io_out8(PIC1_ICW4, 0x01);					// 无缓冲区模式
+
+	io_out8(PIC0_IMR, 0xfb);					// 11111011 PIC1以外全部禁止
+	io_out8(PIC1_IMR, 0xff);					// 11111111 禁止所有中断
+
+	return;
+}
