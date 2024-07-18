@@ -98,6 +98,7 @@ _load_gdtr:												; void load_gdtr(int limit, int addr);
 		LGDT [ESP+6]
 		RET
 
+; 给IDTR寄存器赋值
 _load_idtr:												; void load_idtr(int limit, int addr);
 		MOV AX,[ESP+4]									; limit
 		MOV [ESP+6],AX
