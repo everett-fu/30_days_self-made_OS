@@ -91,6 +91,7 @@ _io_store_eflags:										; void io_store_eflags(int eflags);
 		POPFD											; POP EFLAGS という意味
 		RET												; 返回
 
+; 给GDTR寄存器赋值
 _load_gdtr:												; void load_gdtr(int limit, int addr);
 		MOV AX,[ESP+4]									; limit
 		MOV [ESP+6],AX
