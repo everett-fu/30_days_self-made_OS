@@ -25,6 +25,9 @@ void HariMain(void) {
 	// 初始化PIC
 	init_pic();
 
+	// 将中断标志设置为1
+	io_sti();
+
 	// 初始化调色板
 	init_palette();
 
@@ -44,6 +47,9 @@ void HariMain(void) {
 	// 显示鼠标坐标
 	sprintf(s, "(%d, %d)", mx, my);
 	putfonts8_asc(binfo->vram, binfo->scrnx, 8, 24, COL8_FFFFFF, s);
+
+	io_out8(PIC0_IMR, 0xf9);
+	io_out8(PIC1_IMR, 0xef);
 
 	for (;;) {
 		io_hlt();

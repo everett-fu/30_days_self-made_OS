@@ -75,15 +75,11 @@ install :
 clean :
 	-$(DEL) *.bin
 	-$(DEL) *.lst
-	-$(DEL) *.gas
 	-$(DEL) *.obj
-	-$(DEL)	bootpack.nas
 	-$(DEL)	bootpack.map
 	-$(DEL)	bootpack.bim
 	-$(DEL)	bootpack.hrb
 	-$(DEL) haribote.sys
-	-$(DEL) graphic.nas
-	-$(DEL) dsctbl.nas
 
 src_only :
 	$(MAKE) clean
