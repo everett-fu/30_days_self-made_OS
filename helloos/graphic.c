@@ -76,12 +76,12 @@ void set_palette(int start, int end, unsigned char *rgb) {
 /**
  * 绘制纯色矩形
  * @param vram		显存地址
- * @param xsize		x轴大小
+ * @param xsize		屏幕宽度
  * @param c			颜色
- * @param x0		x0
- * @param y0		y0
- * @param x1		x1
- * @param y1		y1
+ * @param x0		开始的x0坐标
+ * @param y0		开始的y0坐标
+ * @param x1		结束的x1坐标
+ * @param y1		结束的y1坐标
  */
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1) {
 	int x, y;
