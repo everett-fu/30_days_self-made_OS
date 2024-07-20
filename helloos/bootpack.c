@@ -14,11 +14,11 @@
 #include <stdio.h>
 #include "bootpack.h"
 
-extern struct KEYBUF keybuf;
+extern struct FIFO8 keyfifo;
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	char s[40], mcursor[256];
+	char s[40], mcursor[256], keybuf[32];
 	int mx, my, i;
 
 	// 初始化GDT,IDT
@@ -30,8 +30,12 @@ void HariMain(void) {
 	// 将中断标志设置为1
 	io_sti();
 
-	io_out8(PIC0_IMR, 0xf9);
-	io_out8(PIC1_IMR, 0xef);
+	// 初始化FIFO缓冲区
+	fifo8_init(&keyfifo, 32, keybuf);
+
+	// 打开中断
+	io_out8(PIC0_IMR, 0xf9);				// 允许键盘中断
+	io_out8(PIC1_IMR, 0xef);				// 允许鼠标中断
 
 	// 初始化调色板
 	init_palette();
@@ -45,22 +49,19 @@ void HariMain(void) {
 	// 初始化鼠标指针
 	init_mouse_cursor8(mcursor, COL8_008484);
 	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
 	for (;;) {
 		io_cli();
 		// 判断是否有键盘输入
 		// 如果没有键盘输入，则进入休眠状态
-		if (keybuf.len == 0) {
+		if (fifo8_status(&keyfifo) == 0) {
 			io_stihlt();
 		}
 		// 如果有键盘输入，则显示键盘输入
 		else {
-			i = keybuf.data[keybuf.next_r];
-			keybuf.len--;
-			keybuf.next_r++;
-			if (keybuf.next_r == 32) {
-				keybuf.next_r = 0;
-			}
+			i = fifo8_get(&keyfifo);
 			io_sti();
 			sprintf(s, "%02X", i);
 			boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);

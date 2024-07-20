@@ -38,6 +38,18 @@ void asm_inthandler21(void);
 void asm_inthandler27(void);
 void asm_inthandler2c(void);
 
+// fifo.c
+struct FIFO8 {
+	// 缓冲区地址
+	unsigned char *buf;
+	// 下一个写入位置，下一个读取位置，缓冲区大小，缓冲区剩余大小，缓冲区溢出标志
+	int next_w, next_r, size, free, flags;
+};
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
+int fifo8_put(struct FIFO8 *fifo, unsigned char data);
+int fifo8_get(struct FIFO8 *fifo);
+int fifo8_status(struct FIFO8 *fifo);
+
 // graphic.c
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
@@ -99,11 +111,6 @@ void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
 #define AR_INTGATE32	0x008e
 
 // int.c
-// 键盘缓冲区
-struct KEYBUF {
-	unsigned char data[32];
-	int next_r, next_w, len;
-};
 void init_pic(void);
 void inthandler21(int *esp);
 void inthandler27(int *esp);
