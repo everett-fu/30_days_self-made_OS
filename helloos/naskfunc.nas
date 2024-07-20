@@ -24,16 +24,17 @@ _io_hlt:												; void io_hlt(void);
 	HLT													; 休眠
 	RET													; 返回
 
-; 将中断标志置为0
+; 将中断标志置为0，屏蔽中断
 _io_cli:												; void io_cli(void);
 		CLI
 		RET
 
-; 将中断标志置为1
+; 将中断标志置为1，允许中断
 _io_sti:												; void io_sti(void);
 		STI
 		RET
 
+; 将中断标志置为1并休眠
 _io_stihlt:												; void io_stihlt(void);
 		STI
 		HLT

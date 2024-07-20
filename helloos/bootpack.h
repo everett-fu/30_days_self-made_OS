@@ -27,6 +27,8 @@ struct BOOTINFO {
 void io_hlt(void);
 void io_cli(void);
 void io_sti(void);
+void io_stihlt(void);
+int io_in8(int port);
 void io_out8(int port, int data);
 int io_load_eflags(void);
 void io_store_eflags(int eflags);
@@ -35,6 +37,18 @@ void load_idtr(int limit, int addr);
 void asm_inthandler21(void);
 void asm_inthandler27(void);
 void asm_inthandler2c(void);
+
+// fifo.c
+struct FIFO8 {
+	// 缓冲区地址
+	unsigned char *buf;
+	// 下一个写入位置，下一个读取位置，缓冲区大小，缓冲区剩余大小，缓冲区溢出标志
+	int next_w, next_r, size, free, flags;
+};
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
+int fifo8_put(struct FIFO8 *fifo, unsigned char data);
+int fifo8_get(struct FIFO8 *fifo);
+int fifo8_status(struct FIFO8 *fifo);
 
 // graphic.c
 void init_palette(void);
