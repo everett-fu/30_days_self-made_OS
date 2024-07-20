@@ -50,13 +50,17 @@ void HariMain(void) {
 		io_cli();
 		// 判断是否有键盘输入
 		// 如果没有键盘输入，则进入休眠状态
-		if (keybuf.flag == 0) {
+		if (keybuf.next == 0) {
 			io_stihlt();
 		}
 		// 如果有键盘输入，则显示键盘输入
 		else {
-			i = keybuf.data;
-			keybuf.flag = 0;
+			i = keybuf.data[0];
+			keybuf.next--;
+			int j;
+			for (j = 0; j < keybuf.next; j++) {
+				keybuf.data[j] = keybuf.data[j + 1];
+			}
 			io_sti();
 			sprintf(s, "%02X", i);
 			boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
