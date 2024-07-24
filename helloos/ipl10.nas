@@ -40,7 +40,6 @@ entry:
 ;读磁盘
     MOV AX, 0x0820
     MOV ES, AX
-    ;MOV BX, 0
     MOV DH, 0                   ; 磁头0
     MOV CH, 0                   ; 柱面0
     MOV CL, 2                   ; 扇区2
@@ -64,7 +63,6 @@ retry:
     JMP retry
 ; 如果没有错误，继续读取下一个扇区
 next:
-    ;ADD BX, 0x200
     MOV AX, ES
     ADD AX, 0x0020
     MOV ES, AX
