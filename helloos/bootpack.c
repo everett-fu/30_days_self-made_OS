@@ -14,18 +14,6 @@
 #include <stdio.h>
 #include "bootpack.h"
 
-struct MOUSE_DEC {
-	// 鼠标符，鼠标状态
-	unsigned char buf[3], phase;
-	// x: 鼠标移动x坐标, y: 鼠标移动y坐标, btn: 按钮状态
-	int x, y, btn;
-};
-
-extern struct FIFO8 keyfifo, mousefifo;
-void enable_mouse(struct MOUSE_DEC *mdec);
-void init_keyboard(void);
-int mouse_decode(struct MOUSE_DEC *mdec, unsigned char data);
-
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	char s[40], mcursor[256], keybuf[32], mousebuf[128];
@@ -137,97 +125,4 @@ void HariMain(void) {
 			}
 		}
 	}
-}
-
-#define PORT_KEYDAT 0x0060
-#define PORT_KEYSTA 0x0064
-#define PORT_KEYCMD 0x0064
-#define KEYSTA_SEND_NOTREADY 0x02
-#define KEYCMD_WRITE_MODE 0x60
-#define KBC_MODE 0x47
-
-/**
- * 等待键盘控制电路准备完毕
- */
-void wait_KBC_sendready(void) {
-	// 等待键盘控制电路准备完毕
-	for (;;) {
-		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0) {
-			break;
-		}
-	}
-	return;
-}
-
-/**
- * 初始化键盘
- */
-void init_keyboard(void) {
-	// 初始化键盘控制电路
-	wait_KBC_sendready();
-	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
-	wait_KBC_sendready();
-	io_out8(PORT_KEYDAT, KBC_MODE);
-	return;
-}
-
-#define KEYCMD_SENDTO_MOUSE 0xd4
-#define MOUSECMD_ENABLE 0xf4
-
-/**
- * 激活鼠标
- */
-void enable_mouse(struct MOUSE_DEC *mdec) {
-	// 激活鼠标
-	wait_KBC_sendready();
-	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
-	wait_KBC_sendready();
-	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
-	mdec->phase = 0;
-	return;
-}
-
-/**
- * 一次显示三个鼠标符
- * @param mdec		鼠标结构体
- * @param data		鼠标数据
- * @return			返回1表示成功，返回-1表示失败，返回0表示还没有接收完全
- */
-int mouse_decode(struct MOUSE_DEC *mdec, unsigned char data) {
-	if (mdec->phase == 0) {
-		if (data == 0xfa) {
-			mdec->phase = 1;
-		}
-		return 0;
-	}
-	else if (mdec->phase == 1) {
-		if ((data & 0xc8) == 0x08) {
-			mdec->buf[0] = data;
-			mdec->phase = 2;
-		}
-		return 0;
-	}
-	else if (mdec->phase == 2) {
-		mdec->buf[1] = data;
-		mdec->phase = 3;
-		return 0;
-	}
-	else if (mdec->phase == 3) {
-		mdec->buf[2] = data;
-		mdec->phase = 1;
-		// 取出低三位数据
-		mdec->btn = mdec->buf[0] & 0x07;
-		mdec->x = mdec->buf[1];
-		mdec->y = mdec->buf[2];
-
-		if ((mdec->buf[0] & 0x10) != 0) {
-			mdec->x |= 0xffffff00;
-		}
-		if ((mdec->buf[0] & 0x20) != 0) {
-			mdec->y |= 0xffffff00;
-		}
-		mdec->y = -mdec->y;
-		return 1;
-	}
-	return -1;
 }
