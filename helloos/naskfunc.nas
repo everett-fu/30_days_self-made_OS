@@ -12,9 +12,10 @@
 	GLOBAL _io_in8, _io_in16, _io_in32
 	GLOBAL _io_out8, _io_out16, _io_out32
 	GLOBAL _io_load_eflags, _io_store_eflags
-	GLOBAL	_load_gdtr, _load_idtr
-	GLOBAL	_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
-	EXTERN	_inthandler21, _inthandler27, _inthandler2c
+	GLOBAL _load_gdtr, _load_idtr
+	GLOBAL _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
+	EXTERN _inthandler21, _inthandler27, _inthandler2c
+	GLOBAL _load_cr0, _store_cr0
 
 ; 函数定义
 [SECTION .text]
@@ -26,134 +27,145 @@ _io_hlt:												; void io_hlt(void);
 
 ; 将中断标志置为0，屏蔽中断
 _io_cli:												; void io_cli(void);
-		CLI
-		RET
+	CLI
+	RET
 
 ; 将中断标志置为1，允许中断
 _io_sti:												; void io_sti(void);
-		STI
-		RET
+	STI
+	RET
 
 ; 将中断标志置为1并休眠
 _io_stihlt:												; void io_stihlt(void);
-		STI
-		HLT
-		RET
+	STI
+	HLT
+	RET
 
 ; 从端口中读取8位
 _io_in8:												; int io_in8(int port);
-		MOV EDX,[ESP+4]		; port
-		MOV EAX,0
-		IN  AL,DX
-		RET
+	MOV EDX,[ESP+4]		; port
+	MOV EAX,0
+	IN  AL,DX
+	RET
 
 ; 从端口中读取16位
 _io_in16:												; int io_in16(int port);
-		MOV EDX,[ESP+4]		; port
-		MOV EAX,0
-		IN  AX,DX
-		RET
+	MOV EDX,[ESP+4]		; port
+	MOV EAX,0
+	IN  AX,DX
+	RET
 
 ; 从端口中读取32位
 _io_in32:												; int io_in32(int port);
-		MOV EDX,[ESP+4]		; port
-		IN  EAX,DX
-		RET
+	MOV EDX,[ESP+4]		; port
+	IN  EAX,DX
+	RET
 
 ; 从端口中输出8位
 _io_out8:												; void io_out8(int port, int data);
-		MOV EDX,[ESP+4]		; port
-		MOV AL,[ESP+8]		; data
-		OUT DX,AL
-		RET
+	MOV EDX,[ESP+4]		; port
+	MOV AL,[ESP+8]		; data
+	OUT DX,AL
+	RET
 
 ; 从端口中输出16位
 _io_out16:												; void io_out16(int port, int data);
-		MOV EDX,[ESP+4]		; port
-		MOV EAX,[ESP+8]		; data
-		OUT DX,AX
-		RET
+	MOV EDX,[ESP+4]		; port
+	MOV EAX,[ESP+8]		; data
+	OUT DX,AX
+	RET
 
 ; 从端口中输出32位
 _io_out32:												; void io_out32(int port, int data);
-		MOV EDX,[ESP+4]		; port
-		MOV EAX,[ESP+8]		; data
-		OUT DX,EAX
-		RET
+	MOV EDX,[ESP+4]		; port
+	MOV EAX,[ESP+8]		; data
+	OUT DX,EAX
+	RET
 
 ; 加载标志寄存器
 _io_load_eflags:										; int io_load_eflags(void);
-		PUSHFD											; PUSH EFLAGS という意味
-		POP EAX
-		RET
+	PUSHFD											; PUSH EFLAGS という意味
+	POP EAX
+	RET
 
 ; 写入标志寄存器
 _io_store_eflags:										; void io_store_eflags(int eflags);
-		MOV EAX,[ESP+4]
-		PUSH EAX
-		POPFD											; POP EFLAGS という意味
-		RET												; 返回
+	MOV EAX,[ESP+4]
+	PUSH EAX
+	POPFD											; POP EFLAGS という意味
+	RET												; 返回
 
 ; 给GDTR寄存器赋值
 _load_gdtr:												; void load_gdtr(int limit, int addr);
-		MOV AX,[ESP+4]									; limit
-		MOV [ESP+6],AX
-		LGDT [ESP+6]
-		RET
+	MOV AX,[ESP+4]									; limit
+	MOV [ESP+6],AX
+	LGDT [ESP+6]
+	RET
 
 ; 给IDTR寄存器赋值
 _load_idtr:												; void load_idtr(int limit, int addr);
-		MOV AX,[ESP+4]									; limit
-		MOV [ESP+6],AX
-		LIDT [ESP+6]
-		RET
+	MOV AX,[ESP+4]									; limit
+	MOV [ESP+6],AX
+	LIDT [ESP+6]
+	RET
 
 ; 键盘中断处理程序
 _asm_inthandler21:
-		PUSH	ES
-		PUSH	DS
-		PUSHAD
-		MOV		EAX,ESP
-		PUSH	EAX
-		MOV		AX,SS
-		MOV		DS,AX
-		MOV		ES,AX
-		CALL	_inthandler21
-		POP		EAX
-		POPAD
-		POP		DS
-		POP		ES
-		IRETD
+	PUSH	ES
+	PUSH	DS
+	PUSHAD
+	MOV		EAX,ESP
+	PUSH	EAX
+	MOV		AX,SS
+	MOV		DS,AX
+	MOV		ES,AX
+	CALL	_inthandler21
+	POP		EAX
+	POPAD
+	POP		DS
+	POP		ES
+	IRETD
 
 _asm_inthandler27:
-		PUSH	ES
-		PUSH	DS
-		PUSHAD
-		MOV		EAX,ESP
-		PUSH	EAX
-		MOV		AX,SS
-		MOV		DS,AX
-		MOV		ES,AX
-		CALL	_inthandler27
-		POP		EAX
-		POPAD
-		POP		DS
-		POP		ES
-		IRETD
+	PUSH	ES
+	PUSH	DS
+	PUSHAD
+	MOV		EAX,ESP
+	PUSH	EAX
+	MOV		AX,SS
+	MOV		DS,AX
+	MOV		ES,AX
+	CALL	_inthandler27
+	POP		EAX
+	POPAD
+	POP		DS
+	POP		ES
+	IRETD
 
 ; 鼠标中断处理程序
 _asm_inthandler2c:
-		PUSH	ES
-		PUSH	DS
-		PUSHAD
-		MOV		EAX,ESP
-		PUSH	EAX
-		MOV		AX,SS
-		MOV		DS,AX
-		MOV		ES,AX
-		CALL	_inthandler2c
-		POP		EAX
-		POPAD
-		POP		DS
-		POP		ES
-		IRETD
+	PUSH	ES
+	PUSH	DS
+	PUSHAD
+	MOV		EAX,ESP
+	PUSH	EAX
+	MOV		AX,SS
+	MOV		DS,AX
+	MOV		ES,AX
+	CALL	_inthandler2c
+	POP		EAX
+	POPAD
+	POP		DS
+	POP		ES
+	IRETD
+
+; 加载CR0寄存器
+_load_cr0:						; int load_cr0(void);
+	MOV EAX, CR0
+	RET
+
+; 写入CR0寄存器
+_store_cr0:						; void store_cr0(int cr0);
+	MOV EAX, [ESP+4]
+	MOV CR0, EAX
+	RET

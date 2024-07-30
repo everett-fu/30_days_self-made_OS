@@ -13,6 +13,8 @@
  */
 #include <stdio.h>
 #include "bootpack.h"
+unsigned int memtest(unsigned int start, unsigned int end);
+unsigned int memtest_sub(unsigned int start, unsigned int end);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
@@ -41,6 +43,8 @@ void HariMain(void) {
 
 	// 初始化键盘
 	init_keyboard();
+	// 激活鼠标
+	enable_mouse(&mdec);
 
 	// 初始化调色板
 	init_palette();
@@ -59,8 +63,9 @@ void HariMain(void) {
 	sprintf(s, "(%d, %d)", mx, my);
 	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
-	// 激活鼠标
-	enable_mouse(&mdec);
+	i = memtest(0x00400000, 0xbfffffff) / (1024 * 1024);
+	sprintf(s, "memory %dMB", i);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
 	// 系统主循环
 	for (;;) {
@@ -125,4 +130,76 @@ void HariMain(void) {
 			}
 		}
 	}
+}
+
+#define EFLAGS_AC_BIT 0x00040000
+#define CR0_CACHE_DISABLE 0x60000000
+
+/**
+ * 内存检查
+ * @param start		开始地址
+ * @param end		结束地址
+ * @return			返回内存检查结果
+ */
+unsigned int memtest(unsigned int start, unsigned int end) {
+	char flg486 = 0;
+	unsigned int eflg, cr0, i;
+
+	// 确认CPU是386还是486以上的
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT;
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+
+	// 如果是386，即使设定AC=1，AC的值还会自动回到0
+	if ((eflg & EFLAGS_AC_BIT) != 0) {
+		flg486 = 1;
+	}
+
+	eflg &= ~EFLAGS_AC_BIT;
+	io_store_eflags(eflg);
+
+	if (flg486 != 0) {
+		cr0 = load_cr0();
+		// 禁止缓存
+		cr0 |= CR0_CACHE_DISABLE;
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, end);
+
+	if (flg486 != 0) {
+		cr0 = load_cr0();
+		// 允许缓存
+		cr0 &= ~CR0_CACHE_DISABLE;
+		store_cr0(cr0);
+	}
+	return i;
+}
+
+/**
+ * 内存检查
+ * @param start		开始地址
+ * @param end		结束地址
+ * @return			返回内存检查结果
+ */
+unsigned int memtest_sub(unsigned int start, unsigned int end) {
+	unsigned int i, *p, old, pat0 = 0xaa55aa55, pat1 = 0x55aa55aa;
+	for (i = start; i <= end; i += 4) {
+		p = (unsigned int *)i;
+		old = *p;
+		*p = pat0;
+		*p ^= 0xffffffff;
+		if (*p != pat1) {
+not_memory:
+			*p = old;
+			break;
+		}
+		*p ^= 0xffffffff;
+		if (*p != pat0) {
+			goto not_memory;
+		}
+		*p = old;
+	}
+	return i;
 }
