@@ -176,30 +176,3 @@ unsigned int memtest(unsigned int start, unsigned int end) {
 	}
 	return i;
 }
-
-/**
- * 内存检查
- * @param start		开始地址
- * @param end		结束地址
- * @return			返回内存检查结果
- */
-unsigned int memtest_sub(unsigned int start, unsigned int end) {
-	unsigned int i, *p, old, pat0 = 0xaa55aa55, pat1 = 0x55aa55aa;
-	for (i = start; i <= end; i += 4) {
-		p = (unsigned int *)i;
-		old = *p;
-		*p = pat0;
-		*p ^= 0xffffffff;
-		if (*p != pat1) {
-not_memory:
-			*p = old;
-			break;
-		}
-		*p ^= 0xffffffff;
-		if (*p != pat0) {
-			goto not_memory;
-		}
-		*p = old;
-	}
-	return i;
-}
