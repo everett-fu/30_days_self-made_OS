@@ -170,3 +170,29 @@ unsigned int memman_alloc(struct MEMMAN *man, unsigned int size);
 int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size);
 unsigned int memman_alloc_4k(struct MEMMAN *man, unsigned int size);
 int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size);
+
+// sheet.c
+#define MAX_SHEETS 256
+struct SHEET {
+	// buf: 图层的显存地址
+	unsigned char *buf;
+	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用
+	int bxsize, bysize, vx0, vy0, col_inv, height, flags;
+};
+struct SHTCTL {
+	// vram: 显存地址
+	unsigned char *vram;
+	// xsize: x分辨率，ysize: y分辨率，top: 最上层图层的高度
+	int xsize, ysize, top;
+	// sheets: 每个图层内容信息的地址
+	struct SHEET *sheets[MAX_SHEETS];
+	// sheets0: 每个图层结构体的信息
+	struct SHEET sheets0[MAX_SHEETS];
+};
+struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize, int ysize);
+struct SHEET *sheet_alloc(struct SHTCTL *ctl);
+void sheet_setbuf(struct SHEET *sht, unsigned char *buf, int xsize, int ysize, int col_inv);
+void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height);
+void sheet_refresh(struct SHTCTL *ctl);
+void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0);
+void sheet_free(struct SHTCTL *ctl, struct SHEET *sht);

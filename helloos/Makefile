@@ -1,5 +1,5 @@
 OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
-		int.obj fifo.obj keyboard.obj mouse.obj memory.obj
+		int.obj fifo.obj keyboard.obj mouse.obj memory.obj sheet.obj
 # 文件生成规则
 TOOLPATH	= ../z_tools/
 INCPATH		= ../z_tools/haribote/
@@ -51,7 +51,7 @@ haribote.img : ipl10.bin haribote.sys Makefile
 		imgout:haribote.img
 
 # 一般规则
-%.gas : %.c Makefile
+%.gas : %.c bootpack.h Makefile
 	$(CC1) -o $*.gas $*.c
 
 %.nas : %.gas Makefile
