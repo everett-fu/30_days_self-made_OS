@@ -17,6 +17,8 @@
  *   To run: ./ sheet
  */
 #include "bootpack.h"
+// 正在使用的图层标记成1
+#define SHEET_USE 1
 
 /**
  * 初始化图层控制
@@ -45,8 +47,6 @@ struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize
 	return ctl;
 }
 
-// 正在使用的图层标记成1
-#define SHEET_USE 1
 /**
  * 找到一个未使用的图层，返回图层地址，找到这个这个图层，高度为-1，不显示
  * @param ctl 图层控制结构体
@@ -122,7 +122,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 			}
 			ctl->top--;
 		}
-		sheet_refresh(ctl);
+		sheet_refreshsub(ctl, sht->vx0, sht->vy0, sht->vx0 + sht->bxsize, sht->vy0 + sht->bysize);
 	}
 	// 如果重新设定图层的高度大于之前的高度，将old~height之间的图层下降一层
 	else if (height > old) {
@@ -142,7 +142,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 			ctl->sheets[height] = sht;
 			ctl->top++;
 		}
-		sheet_refresh(ctl);
+		sheet_refreshsub(ctl, sht->vx0, sht->vy0, sht->vx0 + sht->bxsize, sht->vy0 + sht->bysize);
 	}
 	return;
 }
@@ -150,26 +150,15 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 /**
  * 刷新图层
  * @param ctl 图层控制结构体
+ * @param sht 图层
+ * @param bx0 x轴坐标
+ * @param by0 y轴坐标
+ * @param bx1 x轴坐标
+ * @param by1 y轴坐标
  */
-void sheet_refresh(struct SHTCTL *ctl) {
-	int h, bx,by, vx, vy;
-	unsigned char *buf, c, *vram = ctl->vram;
-	struct SHEET *sht;
-	// 自下向上绘制所有的图层
-	for (h = 0; h <= ctl->top; h++) {
-		sht = ctl->sheets[h];
-		buf = sht->buf;
-		for (by = 0; by < sht->bysize; by++) {
-			vy = sht->vy0 + by;
-			for (bx = 0; bx < sht->bxsize; bx++) {
-				vx = sht->vx0 + bx;
-				c = buf[by * sht->bxsize + bx];
-				// 如果不是透明色，则绘制
-				if (c != sht->col_inv) {
-					vram[vy * ctl->xsize + vx] = c;
-				}
-			}
-		}
+void sheet_refresh(struct SHTCTL *ctl, struct SHEET *sht, int bx0, int by0, int bx1, int by1) {
+	if (sht->height >= 0) {
+		sheet_refreshsub(ctl, sht->vx0 + bx0, sht->vy0 + by0, sht->vx0 + bx1, sht->vy0 + by1);
 	}
 	return;
 }
@@ -182,11 +171,13 @@ void sheet_refresh(struct SHTCTL *ctl) {
  * @param vy y轴坐标
  */
 void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0) {
+	int old_vx0 = sht->vx0, old_vy0 = sht->vy0;
 	sht->vx0 = vx0;
 	sht->vy0 = vy0;
 	// 如果图层是显示状态，则需要重新绘制
 	if (sht->height >= 0) {
-		sheet_refresh(ctl);
+		sheet_refreshsub(ctl, old_vx0, old_vy0, old_vx0 + sht->bxsize, old_vy0 + sht->bysize);
+		sheet_refreshsub(ctl, vx0, vy0, vx0 + sht->bxsize, vy0 + sht->bysize);
 	}
 	return;
 }
@@ -202,5 +193,54 @@ void sheet_free(struct SHTCTL *ctl, struct SHEET *sht) {
 		sheet_updown(ctl, sht, -1);
 	}
 	sht->flags = 0;
+	return;
+}
+
+/**
+ * 刷新部分图层
+ * @param ctl 图层控制结构体
+ * @param vx0 x轴坐标
+ * @param vy0 y轴坐标
+ * @param vx1 x轴坐标
+ * @param vy1 y轴坐标
+ */
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1) {
+	int h, bx, by, vx, vy, bx0, by0, bx1, by1;
+	unsigned char *buf, c, *vram = ctl->vram;
+	struct SHEET *sht;
+	// 自下向上绘制所有的图层
+	for (h = 0; h <= ctl->top; h++) {
+		sht = ctl->sheets[h];
+		buf = sht->buf;
+		bx0 = vx0 - sht->vx0;
+		by0 = vy0 - sht->vy0;
+		bx1 = vx1 - sht->vx0;
+		by1 = vy1 - sht->vy0;
+		if (bx0 < 0) {
+			bx0 = 0;
+		}
+		if (by0 < 0) {
+			by0 = 0;
+		}
+		if (bx1 > sht->bxsize) {
+			bx1 = sht->bxsize;
+		}
+		if (by1 > sht->bysize) {
+			by1 = sht->bysize;
+		}
+
+		// 只绘制所有图层在vx0~vx1,vy0~vy1之间的内容
+		for (by = by0; by < by1; by++) {
+			vy = sht->vy0 + by;
+			for (bx = bx0; bx < bx1; bx++) {
+				vx = sht->vx0 + bx;
+				c = buf[by * sht->bxsize + bx];
+				// 如果不是透明色，则绘制
+				if (c != sht->col_inv) {
+					vram[vy * ctl->xsize + vx] = c;
+				}
+			}
+		}
+	}
 	return;
 }
