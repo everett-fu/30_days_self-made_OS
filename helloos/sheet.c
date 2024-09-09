@@ -42,6 +42,7 @@ struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize
 		// 将所有图层标记成未使用
 		for (i = 0; i < MAX_SHEETS; i++) {
 			ctl->sheets0[i].flags = 0;
+			ctl->sheets0[i].ctl = ctl;
 		}
 	}
 	return ctl;
@@ -85,12 +86,12 @@ void sheet_setbuf(struct SHEET *sht, unsigned char *buf, int xsize, int ysize, i
 
 /**
  * 设置图层的高度
- * @param ctl 图层控制
  * @param sht 需要设置的图层
  * @param height 高度
  * @return
  */
-void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
+void sheet_updown(struct SHEET *sht, int height) {
+	struct SHTCTL *ctl = sht->ctl;
 	int h, old = sht->height;
 	// 判断height是否超出范围
 	if (height > ctl->top + 1) {
@@ -112,7 +113,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 			}
 			ctl->sheets[height] = sht;
 		}
-		// 如果没有高度，则隐藏起来
+			// 如果没有高度，则隐藏起来
 		else {
 			if (old < ctl->top) {
 				for (h = old; h < ctl->top; h++) {
@@ -124,7 +125,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 		}
 		sheet_refreshsub(ctl, sht->vx0, sht->vy0, sht->vx0 + sht->bxsize, sht->vy0 + sht->bysize);
 	}
-	// 如果重新设定图层的高度大于之前的高度，将old~height之间的图层下降一层
+		// 如果重新设定图层的高度大于之前的高度，将old~height之间的图层下降一层
 	else if (height > old) {
 		if (old >= 0) {
 			for (h = old; h < height; h++) {
@@ -133,7 +134,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 			}
 			ctl->sheets[height] = sht;
 		}
-		// 如果之前是隐藏状态，重新设定以为显示状态
+			// 如果之前是隐藏状态，重新设定以为显示状态
 		else {
 			for (h = ctl->top; h >= height; h--) {
 				ctl->sheets[h + 1] = ctl->sheets[h];
@@ -149,48 +150,45 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 
 /**
  * 刷新图层
- * @param ctl 图层控制结构体
  * @param sht 图层
  * @param bx0 x轴坐标
  * @param by0 y轴坐标
  * @param bx1 x轴坐标
  * @param by1 y轴坐标
  */
-void sheet_refresh(struct SHTCTL *ctl, struct SHEET *sht, int bx0, int by0, int bx1, int by1) {
+void sheet_refresh(struct SHEET *sht, int bx0, int by0, int bx1, int by1) {
 	if (sht->height >= 0) {
-		sheet_refreshsub(ctl, sht->vx0 + bx0, sht->vy0 + by0, sht->vx0 + bx1, sht->vy0 + by1);
+		sheet_refreshsub(sht->ctl, sht->vx0 + bx0, sht->vy0 + by0, sht->vx0 + bx1, sht->vy0 + by1);
 	}
 	return;
 }
 
 /**
  * 移动图层
- * @param ctl 图层控制结构体
  * @param sht 图层
  * @param vx x轴坐标
  * @param vy y轴坐标
  */
-void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0) {
+void sheet_slide(struct SHEET *sht, int vx0, int vy0) {
 	int old_vx0 = sht->vx0, old_vy0 = sht->vy0;
 	sht->vx0 = vx0;
 	sht->vy0 = vy0;
 	// 如果图层是显示状态，则需要重新绘制
 	if (sht->height >= 0) {
-		sheet_refreshsub(ctl, old_vx0, old_vy0, old_vx0 + sht->bxsize, old_vy0 + sht->bysize);
-		sheet_refreshsub(ctl, vx0, vy0, vx0 + sht->bxsize, vy0 + sht->bysize);
+		sheet_refreshsub(sht->ctl, old_vx0, old_vy0, old_vx0 + sht->bxsize, old_vy0 + sht->bysize);
+		sheet_refreshsub(sht->ctl, vx0, vy0, vx0 + sht->bxsize, vy0 + sht->bysize);
 	}
 	return;
 }
 
 /**
  * 释放图层
- * @param ctl 图层控制结构体
  * @param sht 图层
  */
-void sheet_free(struct SHTCTL *ctl, struct SHEET *sht) {
+void sheet_free(struct SHEET *sht) {
 	// 如果图层是显示状态，则需要先隐藏
 	if (sht->height >= 0) {
-		sheet_updown(ctl, sht, -1);
+		sheet_updown(sht, -1);
 	}
 	sht->flags = 0;
 	return;
@@ -211,7 +209,7 @@ void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1) {
 	if (vx0 < 0) {
 		vx0 = 0;
 	}
-	if (vy0 < 0) {
+	if (vy < 0) {
 		vy0 = 0;
 	}
 	if (vx1 > ctl->xsize) {
@@ -220,7 +218,6 @@ void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1) {
 	if (vy1 > ctl->ysize) {
 		vy1 = ctl->ysize;
 	}
-
 	// 自下向上绘制所有的图层
 	for (h = 0; h <= ctl->top; h++) {
 		sht = ctl->sheets[h];
