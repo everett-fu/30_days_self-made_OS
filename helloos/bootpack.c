@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include "bootpack.h"
 
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
+
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	char s[40], keybuf[32], mousebuf[128];
@@ -23,8 +25,8 @@ void HariMain(void) {
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
-	struct SHEET *sht_back, *sht_mouse;
-	unsigned char *buf_back, buf_mouse[256];
+	struct SHEET *sht_back, *sht_mouse, *sht_win;
+	unsigned char *buf_back, buf_mouse[256], *buf_win;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -67,16 +69,26 @@ void HariMain(void) {
 	sht_back = sheet_alloc(shtctl);
 	// 创建鼠标图层
 	sht_mouse = sheet_alloc(shtctl);
+	// 创建窗口图层
+	sht_win = sheet_alloc(shtctl);
 	// 分配背景图层缓冲区
 	buf_back = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
-	// 创建背景图层
+	// 分配窗口图层缓冲区
+	buf_win = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	// 设置背景图层大小和透明色
 	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1);
-	// 创建鼠标图层
+	// 设置鼠标图层大小和透明色
 	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	// 设置窗口图层大小和透明色
+	sheet_setbuf(sht_win, buf_win, 160, 68, -1);
 	// 将类Windows效果放置到背景图层之中
 	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
 	// 将鼠标指针放置到鼠标图层之中
 	init_mouse_cursor8(buf_mouse, 99);
+	// 将窗口放置到窗口图层之中
+	make_window8(buf_win, 160, 68, "window");
+	putfonts8_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
+	putfonts8_asc(buf_win, 160, 40, 44, COL8_000000, "  Haribote-OS!");
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
 
@@ -85,10 +97,14 @@ void HariMain(void) {
 	my = (binfo->scrny - 28 - 16) / 2;
 	// 显示鼠标
 	sheet_slide(sht_mouse, mx, my);
+	// 显示窗口
+	sheet_slide(sht_win, 80, 72);
 	// 设置背景图层高度
 	sheet_updown(sht_back, 0);
 	// 设置鼠标图层高度
-	sheet_updown(sht_mouse, 1);
+	sheet_updown(sht_mouse, 2);
+	// 设置窗口图层高度
+	sheet_updown(sht_win, 1);
 
 	// 显示鼠标坐标
 	sprintf(s, "(%3d, %3d)", mx, my);
@@ -164,4 +180,52 @@ void HariMain(void) {
 			}
 		}
 	}
+}
+
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
+	static char closebtn[14][16]= {
+			"OOOOOOOOOOOOOOO@",
+			"OQQQQQQQQQQQQQ$@",
+			"OQQQQQQQQQQQQQ$@",
+			"OQQQ@@QQQQ@@QQ$@",
+			"OQQQQ@@QQ@@QQQ$@",
+			"OQQQQQ@@@@QQQQ$@",
+			"OQQQQQQ@@QQQQQ$@",
+			"OQQQQQ@@@@QQQQ$@",
+			"OQQQQ@@QQ@@QQQ$@",
+			"OQQQ@@QQQQ@@QQ$@",
+			"OQQQQQQQQQQQQQ$@",
+			"OQQQQQQQQQQQQQ$@",
+			"O$$$$$$$$$$$$$$@",
+			"@@@@@@@@@@@@@@@@"
+	};
+	int x, y;
+	char c;
+	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, xsize - 1, 0);
+	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, xsize - 2, 1);
+	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, 0, ysize - 1);
+	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, 1, ysize -  2);
+	boxfill8(buf, xsize, COL8_848484, xsize - 2, 1, xsize - 2, ysize - 2);
+	boxfill8(buf, xsize, COL8_000000, xsize - 1, 0, xsize - 1, ysize - 1);
+	boxfill8(buf, xsize, COL8_C6C6C6, 2, 2, xsize - 3, ysize - 3);
+	boxfill8(buf, xsize, COL8_000084, 3, 3, xsize - 4, 20);
+	boxfill8(buf, xsize, COL8_848484, 1, ysize - 2, xsize - 2, ysize - 2);
+	boxfill8(buf, xsize, COL8_000000, 0, ysize - 1, xsize - 1, ysize - 1);
+	putfonts8_asc(buf, xsize,24, 4, COL8_FFFFFF, title );
+	for (y = 0; y < 14; y++) {
+		for (x = 0; x < 16; x++) {
+			c = closebtn[y][x];
+			if (c == '@') {
+				c = COL8_000000;
+			}
+			else if (c == '$') {
+				c = COL8_848484;
+			}
+			else if (c == 'Q') {
+				c = COL8_FFFFFF;
+			}
+			buf[(5 + y) * xsize + (xsize - 21 + x)] = c;
+		}
+	}
+	return;
 }
