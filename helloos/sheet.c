@@ -202,6 +202,7 @@ void sheet_free(struct SHEET *sht) {
  * @param vy0 y轴坐标
  * @param vx1 x轴坐标
  * @param vy1 y轴坐标
+ * @param h0  从这个高度开始
  */
 void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0) {
 	int h, bx, by, vx, vy, bx0, by0, bx1, by1;

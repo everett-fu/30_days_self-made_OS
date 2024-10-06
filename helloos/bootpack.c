@@ -186,6 +186,13 @@ void HariMain(void) {
 	}
 }
 
+/**
+ * 创建窗口
+ * @param buf		缓冲区
+ * @param xsize		窗口的宽度
+ * @param ysize		窗口的高度
+ * @param title		窗口的标题
+ */
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
 	static char closebtn[14][16]= {
 			"OOOOOOOOOOOOOOO@",
