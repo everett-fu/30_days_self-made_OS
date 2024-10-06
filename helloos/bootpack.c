@@ -126,7 +126,8 @@ void HariMain(void) {
 		// 判断是否有键盘输入，或者鼠标输入
 		// 如果没有键盘输入或者鼠标输入，则进入休眠状态
 		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
-			io_stihlt();
+			io_sti();
+//			io_stihlt();
 		}
 		else {
 			// 如果有键盘输入，则显示键盘输入
