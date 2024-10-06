@@ -21,7 +21,7 @@ void HariMain(void) {
 	char s[40], keybuf[32], mousebuf[128];
 	int mx, my, i;
 	struct MOUSE_DEC mdec;
-	unsigned int memtotal;
+	unsigned int memtotal, count = 0;
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
@@ -80,15 +80,13 @@ void HariMain(void) {
 	// 设置鼠标图层大小和透明色
 	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
 	// 设置窗口图层大小和透明色
-	sheet_setbuf(sht_win, buf_win, 160, 68, -1);
+	sheet_setbuf(sht_win, buf_win, 160, 52, -1);
 	// 将类Windows效果放置到背景图层之中
 	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
 	// 将鼠标指针放置到鼠标图层之中
 	init_mouse_cursor8(buf_mouse, 99);
 	// 将窗口放置到窗口图层之中
-	make_window8(buf_win, 160, 68, "window");
-	putfonts8_asc(buf_win, 160, 24, 28, COL8_000000, "Welcome to");
-	putfonts8_asc(buf_win, 160, 40, 44, COL8_000000, "  Haribote-OS!");
+	make_window8(buf_win, 160, 52, "counter");
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
 
@@ -118,6 +116,11 @@ void HariMain(void) {
 
 	// 系统主循环
 	for (;;) {
+		count++;
+		sprintf(s, "%010d", count);
+		boxfill8(buf_win, 160, COL8_C6C6C6, 40, 28, 119, 43);
+		putfonts8_asc(buf_win, 160, 40, 28, COL8_000000, s);
+		sheet_refresh(sht_win, 40, 28, 120, 44);
 		// 屏蔽中断
 		io_cli();
 		// 判断是否有键盘输入，或者鼠标输入
