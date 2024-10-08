@@ -182,7 +182,7 @@ struct SHEET {
 };
 struct SHTCTL {
 	// vram: 显存地址
-	unsigned char *vram;
+	unsigned char *vram, *map;
 	// xsize: x分辨率，ysize: y分辨率，top: 最上层图层的高度
 	int xsize, ysize, top;
 	// sheets: 每个图层内容信息的地址
@@ -197,4 +197,5 @@ void sheet_updown(struct SHEET *sht, int height);
 void sheet_refresh(struct SHEET *sht, int bx0, int by0, int bx1, int by1);
 void sheet_slide(struct SHEET *sht, int vx0, int vy0);
 void sheet_free(struct SHEET *sht);
-void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0, int h1);
+void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
