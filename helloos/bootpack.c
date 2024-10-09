@@ -21,7 +21,7 @@ void HariMain(void) {
 	char s[40], keybuf[32], mousebuf[128];
 	int mx, my, i;
 	struct MOUSE_DEC mdec;
-	unsigned int memtotal, count = 0;
+	unsigned int memtotal;
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
@@ -111,6 +111,7 @@ void HariMain(void) {
 	sprintf(s, "(%3d, %3d)", mx, my);
 	putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
+	// 显示内存信息
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc(buf_back, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
@@ -119,8 +120,7 @@ void HariMain(void) {
 
 	// 系统主循环
 	for (;;) {
-		count++;
-		sprintf(s, "%010d", count);
+		sprintf(s, "%010d", timerctl.count);
 		boxfill8(buf_win, 160, COL8_C6C6C6, 40, 28, 119, 43);
 		putfonts8_asc(buf_win, 160, 40, 28, COL8_000000, s);
 		sheet_refresh(sht_win, 40, 28, 120, 44);
