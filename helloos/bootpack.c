@@ -43,9 +43,12 @@ void HariMain(void) {
 	// 鼠标缓冲区
 	fifo8_init(&mousefifo, 128, mousebuf);
 
+	// 初始化定时器
+	init_pit();
+
 	// 打开中断
-	io_out8(PIC0_IMR, 0xf9);                // 允许键盘中断
-	io_out8(PIC1_IMR, 0xef);                // 允许鼠标中断
+	io_out8(PIC0_IMR, 0xf8);                // PIC1和键盘许可(11111000)
+	io_out8(PIC1_IMR, 0xef);                // 鼠标许可(11101111)
 
 	// 初始化键盘
 	init_keyboard();
