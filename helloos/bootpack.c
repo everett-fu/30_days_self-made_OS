@@ -18,10 +18,11 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	char s[40], keybuf[32], mousebuf[128];
+	struct FIFO8 timerfifo;
+	char s[40], keybuf[32], mousebuf[128], timerbuf[8];
 	int mx, my, i;
 	struct MOUSE_DEC mdec;
-	unsigned int memtotal, count = 0;
+	unsigned int memtotal;
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
@@ -34,6 +35,9 @@ void HariMain(void) {
 	// 初始化PIC
 	init_pic();
 
+	// 初始化定时器
+	init_pit();
+
 	// 将中断标志设置为1，允许中断
 	io_sti();
 
@@ -42,10 +46,13 @@ void HariMain(void) {
 	fifo8_init(&keyfifo, 32, keybuf);
 	// 鼠标缓冲区
 	fifo8_init(&mousefifo, 128, mousebuf);
+	// 定时器缓冲区
+	fifo8_init(&timerfifo, 8, timerbuf);
+	settimer(1000, &timerfifo, 1);
 
 	// 打开中断
-	io_out8(PIC0_IMR, 0xf9);                // 允许键盘中断
-	io_out8(PIC1_IMR, 0xef);                // 允许鼠标中断
+	io_out8(PIC0_IMR, 0xf8);                // PIC1和键盘许可(11111000)
+	io_out8(PIC1_IMR, 0xef);                // 鼠标许可(11101111)
 
 	// 初始化键盘
 	init_keyboard();
@@ -108,6 +115,7 @@ void HariMain(void) {
 	sprintf(s, "(%3d, %3d)", mx, my);
 	putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
+	// 显示内存信息
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc(buf_back, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
 
@@ -116,16 +124,15 @@ void HariMain(void) {
 
 	// 系统主循环
 	for (;;) {
-		count++;
-		sprintf(s, "%010d", count);
+		sprintf(s, "%010d", timerctl.count);
 		boxfill8(buf_win, 160, COL8_C6C6C6, 40, 28, 119, 43);
 		putfonts8_asc(buf_win, 160, 40, 28, COL8_000000, s);
 		sheet_refresh(sht_win, 40, 28, 120, 44);
 		// 屏蔽中断
 		io_cli();
-		// 判断是否有键盘输入，或者鼠标输入
+		// 判断是否有键盘输入，或者鼠标输入，或者定时器超时
 		// 如果没有键盘输入或者鼠标输入，则进入休眠状态
-		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo) == 0) {
 			io_sti();
 //			io_stihlt();
 		}
@@ -182,6 +189,12 @@ void HariMain(void) {
 					sheet_slide(sht_mouse, mx, my);
 				}
 			}
+			else if (fifo8_status(&timerfifo) != 0) {
+				i = fifo8_get(&timerfifo);
+				io_sti();
+				putfonts8_asc(buf_back, binfo->scrnx, 0, 64, COL8_FFFFFF, "10[sec]");
+				sheet_refresh(sht_back, 0, 64, 56, 80);
+			}
 		}
 	}
 }
@@ -231,8 +244,9 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
 			}
 			else if (c == '$') {
 				c = COL8_848484;
-			}
-			else if (c == 'Q') {
+			} else if (c == 'Q') {
+				c = COL8_C6C6C6;
+			} else {
 				c = COL8_FFFFFF;
 			}
 			buf[(5 + y) * xsize + (xsize - 21 + x)] = c;
