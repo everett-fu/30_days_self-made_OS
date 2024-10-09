@@ -32,6 +32,7 @@ void init_pit(void) {
 	io_out8(PIT_CNT0, 0x9c);
 	io_out8(PIT_CNT0, 0x2e);
 	timerctl.count = 0;
+	timerctl.timeout = 0;
 	return;
 }
 
@@ -42,5 +43,29 @@ void init_pit(void) {
 void inthandler20(int *esp) {
 	io_out8(PIC0_OCW2, 0x60);	/* 把IRQ-00信号接收完了的信息通知给PIC */
 	timerctl.count++;
+	if (timerctl.timeout > 0) {
+		timerctl.timeout--;
+		if (timerctl.timeout == 0) {
+			fifo8_put(timerctl.fifo, timerctl.data);
+		}
+
+	}
+	return;
+}
+
+/**
+ * 设置定时器超时时间与超时后显示的字符
+ * @param timeout	超时时间
+ * @param fifo		缓冲区
+ * @param data		字符数据
+ */
+void settimer(unsigned int timeout, struct FIFO8 *fifo, unsigned char data) {
+	int eflags;
+	eflags = io_load_eflags();
+	io_cli();
+	timerctl.timeout = timeout;
+	timerctl.fifo = fifo;
+	timerctl.data = data;
+	io_store_eflags(eflags);
 	return;
 }
