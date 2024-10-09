@@ -234,8 +234,9 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
 			}
 			else if (c == '$') {
 				c = COL8_848484;
-			}
-			else if (c == 'Q') {
+			} else if (c == 'Q') {
+				c = COL8_C6C6C6;
+			} else {
 				c = COL8_FFFFFF;
 			}
 			buf[(5 + y) * xsize + (xsize - 21 + x)] = c;
