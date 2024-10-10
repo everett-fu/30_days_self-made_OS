@@ -34,7 +34,7 @@ void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf) {
  * 从FIFO缓冲区中写入一个字节
  * @param fifo		FIFO缓冲区
  * @param data		写入的数据
- * return 			缓冲区已满
+ * @return 			缓冲区已满
  */
 int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
 	// 缓冲区已满
