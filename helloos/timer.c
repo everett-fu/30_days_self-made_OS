@@ -53,14 +53,10 @@ void inthandler20(int *esp) {
 	io_out8(PIC0_OCW2, 0x60);	/* 把IRQ-00信号接收完了的信息通知给PIC */
 	timerctl.count++;
 	for (i = 0; i < MAX_TIMER; i++) {
-		if (timerctl.timer[i].flags == TIMER_FLAGS_USING) {
-			timerctl.timer[i].timeout--;
-			if (timerctl.timer[i].timeout == 0) {
+		if (timerctl.timer[i].flags == TIMER_FLAGS_USING && timerctl.timer[i].timeout <= timerctl.count) {
+				timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
 				fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
-			}
-
 		}
-
 	}
 	return;
 }
@@ -107,7 +103,7 @@ void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data) {
  * @param timeout	要设置的定时超时时间
  */
 void timer_settime(struct TIMER *timer, unsigned int timeout) {
-	timer->timeout = timeout;
+	timer->timeout = timeout + timerctl.count;
 	timer->flags = TIMER_FLAGS_USING;
 	return;
 }
