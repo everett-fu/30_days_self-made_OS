@@ -215,9 +215,12 @@ struct TIMER {
 
 // 计时器控制器
 struct TIMERCTL {
-	// 计时器当前时间，下一个超时时间
-	unsigned int count, next_timeout;
-	struct TIMER timer[MAX_TIMER];
+	// 计时器当前时间，下一个超时时间，有几个定时器正在使用
+	unsigned int count, next_timeout, using;
+	// 排序好的定时器，按照超时时间从小到大排序
+	struct TIMER *timers[MAX_TIMER];
+	// 原始定时器
+	struct TIMER timers0[MAX_TIMER];
 };
 extern struct TIMERCTL timerctl;
 void init_pit(void);
