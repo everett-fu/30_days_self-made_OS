@@ -203,14 +203,20 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 
 // timer.c
 #define MAX_TIMER 500
+// 计时器
 struct TIMER {
 	// 每个定时器超时时间,该定时器状态
 	unsigned int timeout, flags;
+	// 每个定时器超时以后需要发送数据到的缓冲区
 	struct FIFO8 *fifo;
+	// 每个定时器超时以后需要发送的数据
 	unsigned char data;
 };
+
+// 计时器控制器
 struct TIMERCTL {
-	unsigned int count;
+	// 计时器当前时间，下一个超时时间
+	unsigned int count, next_timeout;
 	struct TIMER timer[MAX_TIMER];
 };
 extern struct TIMERCTL timerctl;
