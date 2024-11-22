@@ -127,7 +127,7 @@ void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data) {
  * @param timeout	要设置的定时超时时间
  */
 void timer_settime(struct TIMER *timer, unsigned int timeout) {
-	int e, i, j;
+	int e, i;
 	timer->timeout = timeout + timerctl.count;
 	timer->flags = TIMER_FLAGS_USING;
 	// 关闭中断
@@ -146,7 +146,3 @@ void timer_settime(struct TIMER *timer, unsigned int timeout) {
 	io_store_eflags(e);
 	return;
 }
-
-
-
-

@@ -129,23 +129,15 @@ void HariMain(void) {
 	// 显示鼠标坐标
 	sprintf(s, "(%3d, %3d)", mx, my);
 	putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
-	//putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
 	// 显示内存信息
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
-	//putfonts8_asc(buf_back, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
-
-	// 刷新所有图层
-	//sheet_refresh(sht_back, 0, 0, binfo->scrnx, 48);
 
 	// 系统主循环
 	for (;;) {
 		sprintf(s, "%010d", timerctl.count);
 		putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
-		//boxfill8(buf_win, 160, COL8_C6C6C6, 40, 28, 119, 43);
-		//putfonts8_asc(buf_win, 160, 40, 28, COL8_000000, s);
-		//sheet_refresh(sht_win, 40, 28, 120, 44);
 
 		// 屏蔽中断
 		io_cli();
@@ -154,7 +146,6 @@ void HariMain(void) {
 		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo)
 			+ fifo8_status(&timerfifo2) + fifo8_status(&timerfifo3) == 0) {
 			io_sti();
-//			io_stihlt();
 		}
 		else {
 			// 如果有键盘输入，则显示键盘输入
@@ -163,9 +154,6 @@ void HariMain(void) {
 				io_sti();
 				sprintf(s, "%02X", i);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
-				//boxfill8(buf_back, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
-				//putfonts8_asc(buf_back, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
-				//sheet_refresh(sht_back, 0, 16, 16, 32);
 			}
 			// 如果有鼠标输入，则显示鼠标输入
 			else if (fifo8_status(&mousefifo) != 0) {
@@ -184,9 +172,6 @@ void HariMain(void) {
 						s[2] = 'C';
 					}
 					putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
-					//boxfill8(buf_back, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
-					//putfonts8_asc(buf_back, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
-					//sheet_refresh(sht_back, 32, 16, 32 + 15 * 8, 32);
 
 					mx += mdec.x;
 					my += mdec.y;
@@ -205,9 +190,6 @@ void HariMain(void) {
 					// 显示鼠标坐标
 					sprintf(s, "(%3d, %3d)", mx, my);
 					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
-					//boxfill8(buf_back, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
-					//putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
-					//sheet_refresh(sht_back, 0, 0, 80, 16);
 					// 显示鼠标
 					sheet_slide(sht_mouse, mx, my);
 				}
@@ -216,15 +198,11 @@ void HariMain(void) {
 				i = fifo8_get(&timerfifo);
 				io_sti();
 				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
-				//putfonts8_asc(buf_back, binfo->scrnx, 0, 64, COL8_FFFFFF, "10[sec]");
-				//sheet_refresh(sht_back, 0, 64, 56, 80);
 			}
 			else if (fifo8_status(&timerfifo2) != 0) {
 				i = fifo8_get(&timerfifo2);
 				io_sti();
 				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
-				//putfonts8_asc(buf_back, binfo->scrnx, 0, 80, COL8_FFFFFF, "3[sec]");
-				//sheet_refresh(sht_back, 0, 80, 48, 96);
 			}
 			else if (fifo8_status(&timerfifo3) != 0) {
 				i = fifo8_get(&timerfifo3);
