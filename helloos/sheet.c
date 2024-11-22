@@ -179,7 +179,7 @@ void sheet_refresh(struct SHEET *sht, int bx0, int by0, int bx1, int by1) {
  * @param vy y轴坐标
  */
 void sheet_slide(struct SHEET *sht, int vx0, int vy0) {
-	struct SHTCTL *ctl = sht->ctl;
+//	struct SHTCTL *ctl = sht->ctl;
 	int old_vx0 = sht->vx0, old_vy0 = sht->vy0;
 	sht->vx0 = vx0;
 	sht->vy0 = vy0;
@@ -289,7 +289,7 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 	if (vx0 < 0) {
 		vx0 = 0;
 	}
-	if (vy < 0) {
+	if (vy0 < 0) {
 		vy0 = 0;
 	}
 	if (vx1 > ctl->xsize) {
