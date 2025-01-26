@@ -21,16 +21,18 @@
 #define KEYCMD_WRITE_MODE 0x60
 #define KBC_MODE 0x47
 
-struct FIFO8 keyfifo;
+struct FIFO32 *keyfifo;
+int keydata0;
+
 /**
  * 处理键盘中断
  * @param esp
  */
 void inthandler21(int *esp) {
-	unsigned char data;
+	int data;
 	io_out8(PIC0_OCW2, 0x61);
 	data = io_in8(PORT_KEYDAT);
-	fifo8_put(&keyfifo, data);
+	fifo32_put(keyfifo, data + keydata0);
 	return;
 }
 
@@ -50,7 +52,9 @@ void wait_KBC_sendready(void) {
 /**
  * 初始化键盘
  */
-void init_keyboard(void) {
+void init_keyboard(struct FIFO32 *fifo, int data0) {
+	keyfifo = fifo;
+	keydata0 = data0;
 	// 初始化键盘控制电路
 	wait_KBC_sendready();
 	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);

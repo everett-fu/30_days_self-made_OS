@@ -67,7 +67,7 @@ void inthandler20(int *esp) {
 		}
 		// 当定时器超时的时候，设置定时器状态，并向相应的缓冲区输出数据
 		timerctl.timers[i]->flags = TIMER_FLAGS_ALLOC;
-		fifo8_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);
+		fifo32_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);
 	}
 	// 减去已经超时的定时器
 	timerctl.using -= i;
@@ -115,7 +115,7 @@ void timer_free(struct TIMER *timer) {
  * @param fifo		要写入的缓冲区
  * @param data		要写入的数据
  */
-void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data) {
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data) {
 	timer->fifo = fifo;
 	timer->data = data;
 	return;
