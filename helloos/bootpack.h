@@ -43,16 +43,16 @@ void store_cr0(int cr0);
 unsigned int memtest_sub(unsigned int start, unsigned int end);
 
 // fifo.c
-struct FIFO8 {
+struct FIFO32 {
 	// 缓冲区地址
-	unsigned char *buf;
+	int *buf;
 	// 下一个写入位置，下一个读取位置，缓冲区大小，缓冲区剩余大小，缓冲区溢出标志
 	int next_w, next_r, size, free, flags;
 };
-void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
-int fifo8_put(struct FIFO8 *fifo, unsigned char data);
-int fifo8_get(struct FIFO8 *fifo);
-int fifo8_status(struct FIFO8 *fifo);
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
+int fifo32_put(struct FIFO32 *fifo, int data);
+int fifo32_get(struct FIFO32 *fifo);
+int fifo32_status(struct FIFO32 *fifo);
 
 // graphic.c
 void init_palette(void);
@@ -133,8 +133,7 @@ void inthandler27(int *esp);
 // keyboard.c
 void inthandler21(int *esp);
 void wait_KBC_sendready(void);
-void init_keyboard(void);
-extern struct FIFO8 keyfifo;
+void init_keyboard(struct FIFO32 *fifo, int data0);
 #define PORT_KEYDAT 0x0060
 #define PORT_KEYCMD 0x0064
 
@@ -146,9 +145,8 @@ struct MOUSE_DEC {
 	int x, y, btn;
 };
 void inthandler2c(int *esp);
-void enable_mouse(struct MOUSE_DEC *mdec);
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec);
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char data);
-extern struct FIFO8 mousefifo;
 
 // memory.c
 #define MEMMAN_FREES 4090
@@ -208,9 +206,9 @@ struct TIMER {
 	// 每个定时器超时时间,该定时器状态
 	unsigned int timeout, flags;
 	// 每个定时器超时以后需要发送数据到的缓冲区
-	struct FIFO8 *fifo;
+	struct FIFO32 *fifo;
 	// 每个定时器超时以后需要发送的数据
-	unsigned char data;
+	int data;
 };
 
 // 计时器控制器
@@ -227,5 +225,5 @@ void init_pit(void);
 void inthandler20(int *esp);
 struct TIMER * timer_alloc(void);
 void timer_free(struct TIMER *timer);
-void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data);
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);

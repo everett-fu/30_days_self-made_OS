@@ -4,17 +4,18 @@
  * Created: 24-8-2
  * Last Modified: 24-8-2
  * Description:
- *   This file contains the implementation of memory. The program
- *   demonstrates basic functionality and serves as an example.
+ * 这个文件包含了内存管理的实现。
  *
  * Functions:
- *   - main: The entry point of the program.
- *   - ${Function1}: Description of the function.
- *   - ${Function2}: Description of the function.
+ * - memtest: 内存检查
+ * - memman_init: 初始化内存管理
+ * - memman_total: 统计剩余内存总大小
+ * - memman_alloc: 分配内存
+ * - memman_free: 释放内存
+ * - memman_alloc_4k: 分配4K内存
+ * - memman_free_4k: 释放4K内存
  *
  * Usage:
- *   To compile: gcc -o memory memory.c
- *   To run: ./ memory
  */
 #include "bootpack.h"
 

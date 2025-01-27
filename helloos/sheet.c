@@ -4,17 +4,20 @@
  * Created: 24-9-5
  * Last Modified: 24-9-5
  * Description:
- *   This file contains the implementation of sheet. The program
- *   demonstrates basic functionality and serves as an example.
+ * 这个文件是图层的实现文件，包含了图层的初始化和显示等功能。
  *
  * Functions:
- *   - main: The entry point of the program.
- *   - ${Function1}: Description of the function.
- *   - ${Function2}: Description of the function.
+ * - shtctl_init: 初始化图层控制
+ * - sheet_alloc: 找到一个未使用的图层
+ * - sheet_setbuf: 设置图层的缓冲区大小和透明色
+ * - sheet_updown: 设置图层的高度
+ * - sheet_refresh: 刷新图层
+ * - sheet_slide: 移动图层
+ * - sheet_free: 释放图层
+ * - sheet_refreshsub: 刷新图层
+ * - sheet_refreshmap: 刷新图层
  *
  * Usage:
- *   To compile: gcc -o sheet sheet.c
- *   To run: ./ sheet
  */
 #include "bootpack.h"
 // 正在使用的图层标记成1
@@ -179,7 +182,7 @@ void sheet_refresh(struct SHEET *sht, int bx0, int by0, int bx1, int by1) {
  * @param vy y轴坐标
  */
 void sheet_slide(struct SHEET *sht, int vx0, int vy0) {
-	struct SHTCTL *ctl = sht->ctl;
+//	struct SHTCTL *ctl = sht->ctl;
 	int old_vx0 = sht->vx0, old_vy0 = sht->vy0;
 	sht->vx0 = vx0;
 	sht->vy0 = vy0;
@@ -289,7 +292,7 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 	if (vx0 < 0) {
 		vx0 = 0;
 	}
-	if (vy < 0) {
+	if (vy0 < 0) {
 		vy0 = 0;
 	}
 	if (vx1 > ctl->xsize) {

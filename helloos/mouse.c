@@ -4,17 +4,14 @@
  * Created: 24-7-30
  * Last Modified: 24-7-30
  * Description:
- *   This file contains the implementation of mouse. The program
- *   demonstrates basic functionality and serves as an example.
+ * 这个文件包含了鼠标中断与鼠标初始化的实现。
  *
  * Functions:
- *   - main: The entry point of the program.
- *   - ${Function1}: Description of the function.
- *   - ${Function2}: Description of the function.
+ * - inthandler2c: 处理鼠标中断
+ * - enable_mouse: 激活鼠标
+ * - mouse_decode: 一次显示三个鼠标符
  *
  * Usage:
- *   To compile: gcc -o mouse mouse.c
- *   To run: ./ mouse
  */
 
 #include "bootpack.h"
@@ -22,24 +19,31 @@
 #define KEYCMD_SENDTO_MOUSE 0xd4
 #define MOUSECMD_ENABLE 0xf4
 
+struct FIFO32 *mousefifo;
+int mousedata0;
+
 /**
  * 处理鼠标中断
  * @param esp
  */
-struct FIFO8 mousefifo;
 void inthandler2c(int *esp) {
-	unsigned char data;
+	int data;
 	io_out8(PIC1_OCW2, 0x64);
 	io_out8(PIC0_OCW2, 0x62);
 	data = io_in8(PORT_KEYDAT);
-	fifo8_put(&mousefifo, data);
+	fifo32_put(mousefifo, data + mousedata0);
 	return;
 }
 
 /**
  * 激活鼠标
+ * @param fifo		缓冲区
+ * @param data0		数据
+ * @param mdec		鼠标结构体
  */
-void enable_mouse(struct MOUSE_DEC *mdec) {
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec) {
+	mousefifo = fifo;
+	mousedata0 = data0;
 	// 激活鼠标
 	wait_KBC_sendready();
 	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);

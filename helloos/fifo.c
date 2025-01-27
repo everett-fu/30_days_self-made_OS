@@ -4,8 +4,13 @@
  * Created: 24-7-20
  * Last Modified: 24-7-20
  * Description:
+ * 这个文件包含了FIFO缓冲区的实现。
  *
  * Functions:
+ * - fifo32_init: 初始化FIFO缓冲区
+ * - fifo32_put: 从FIFO缓冲区中写入一个字节
+ * - fifo32_get: 从FIFO缓冲区中读取一个字节
+ * - fifo32_status: 获取FIFO缓冲区的状态
  *
  * Usage:
  */
@@ -20,7 +25,7 @@
  * @param size		缓冲区大小
  * @param buf		缓冲区地址
  */
-void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf) {
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf) {
 	fifo->size = size;
 	fifo->buf = buf;
 	fifo->free = size;                // 缓冲区大小
@@ -36,7 +41,7 @@ void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf) {
  * @param data		写入的数据
  * @return 			缓冲区已满
  */
-int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
+int fifo32_put(struct FIFO32 *fifo, int data) {
 	// 缓冲区已满
 	if (fifo->free == 0) {
 		fifo->flags |= FLAGS_OVERRUN;
@@ -57,7 +62,7 @@ int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
  * @param fifo		FIFO缓冲区
  * @return 			读取的数据或者-1
  */
-int fifo8_get(struct FIFO8 *fifo) {
+int fifo32_get(struct FIFO32 *fifo) {
 	int data;
 	// 缓冲区为空
 	if (fifo->free == fifo->size) {
@@ -78,9 +83,6 @@ int fifo8_get(struct FIFO8 *fifo) {
  * @param fifo		FIFO缓冲区
  * @return			缓冲区内的数量
  */
-int fifo8_status(struct FIFO8 *fifo) {
+int fifo32_status(struct FIFO32 *fifo) {
 	return fifo->size - fifo->free;
 }
-
-
-
