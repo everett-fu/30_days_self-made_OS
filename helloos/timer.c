@@ -4,17 +4,17 @@
  * Created: 24-10-9
  * Last Modified: 24-10-9
  * Description:
- *   This file contains the implementation of timer. The program
- *   demonstrates basic functionality and serves as an example.
+ * 这个文件包含了定时器的实现。
  *
  * Functions:
- *   - main: The entry point of the program.
- *   - ${Function1}: Description of the function.
- *   - ${Function2}: Description of the function.
+ * - init_pit: 初始化PIT
+ * - inthandler20: 处理定时器中断
+ * - timer_alloc: 找到一个未使用的定时器，把该定时器状态改为已启动，并返回该定时器的地址
+ * - timer_free: 将一个定时器关闭
+ * - timer_init: 设置定时器超时时间与超时后显示的字符
+ * - timer_settime: 设置定时器超时时间
  *
  * Usage:
- *   To compile: gcc -o timer timer.c
- *   To run: ./ timer
  */
 
 #include "bootpack.h"

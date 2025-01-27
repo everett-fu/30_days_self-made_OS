@@ -4,8 +4,13 @@
  * Created: 24-7-20
  * Last Modified: 24-7-20
  * Description:
+ * 这个文件包含了FIFO缓冲区的实现。
  *
  * Functions:
+ * - fifo32_init: 初始化FIFO缓冲区
+ * - fifo32_put: 从FIFO缓冲区中写入一个字节
+ * - fifo32_get: 从FIFO缓冲区中读取一个字节
+ * - fifo32_status: 获取FIFO缓冲区的状态
  *
  * Usage:
  */

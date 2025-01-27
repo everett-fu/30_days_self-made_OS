@@ -8,6 +8,8 @@
  *
  * Functions:
  * - HariMain: 主函数
+ * - make_window8: 创建窗口
+ * - putfonts8_asc_sht: 在图层上显示字符串
  *
  * Usage:
  */

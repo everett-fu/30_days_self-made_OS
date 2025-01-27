@@ -4,13 +4,12 @@
  * Created: 24-7-30
  * Last Modified: 24-7-30
  * Description:
- *   This file contains the implementation of keyboard. The program
- *   demonstrates basic functionality and serves as an example.
+ * 这个文件包含了键盘中断与键盘初始化的实现。
  *
  * Functions:
- *   - main: The entry point of the program.
- *   - ${Function1}: Description of the function.
- *   - ${Function2}: Description of the function.
+ * - inthandler21: 处理键盘中断
+ * - wait_KBC_sendready: 等待键盘控制电路准备完毕
+ * - init_keyboard: 初始化键盘
  *
  * Usage:
  */
@@ -51,6 +50,8 @@ void wait_KBC_sendready(void) {
 
 /**
  * 初始化键盘
+ * @param fifo		缓冲区
+ * @param data0		数据
  */
 void init_keyboard(struct FIFO32 *fifo, int data0) {
 	keyfifo = fifo;
