@@ -8,6 +8,7 @@ DSKCAC0	EQU		0x00008000		; ディスクキャッシュの場所（リアルモ�
 ; BOOT_INFO信息
 CYLS    EQU 0x0ff0                  ; 设定启动区
 LEDS    EQU 0x0ff1
+VBEMODE EQU 0x0105
 VMODE   EQU 0x0ff2                  ; 关于颜色数目的信息，颜色的位数
 SCRNX   EQU 0x0ff4                  ; 屏幕的x分辨率
 SCRNY   EQU 0x0ff6                  ; 屏幕的y分辨率
@@ -16,18 +17,79 @@ VRAM    EQU 0x0ff8                  ; 显存的起始地址
 ORG 0xc200                          ; 程序加载地址
 
 ; 画面显示设定
-MOV BX, 0x4105                        ; VGA显卡，320x200x8bit
-MOV AX, 0x4f02
-INT 0x10
-MOV BYTE [VMODE], 8                 ; 记录画面模式
-MOV WORD [SCRNX], 1024
-MOV WORD [SCRNY], 768
-MOV DWORD [VRAM], 0xe0000000
+; 确认VBE是否存在
+; 当AX=0x4f00，调用INT 10，如果函数调用成功（有VBE)，将会把AX置为0x004f，同时会返回VBE控制信息到ES:DI之中
+; 如果不是0x4f00，则调用默认的320*200分辨率
+        MOV AX, 0x9000
+        MOV ES, AX
+        MOV DI, 0
+        MOV AX, 0x4f00
+        INT 0x10
+        CMP AX, 0x004f
+        JNE scrn320
+
+; 检查VBE的版本，只有VBE2.0以上的版本才能切换分辨率，2.0以下的只能使用320*200
+        MOV AX, [ES:DI+4]
+        CMP AX, 0x0200
+        JB  scrn320
+
+; 获取VBE画面模式
+; 当CX=画面模式，AX=0x4f01，调用INT 10，如果函数调用成功，将会把AX置为0x004f
+; 同时会返回VBE画面信息到ES:DI之中（这次会覆盖上次的信息，但上次的信息用不到了）
+; 无法获取则直接使用320*200的分辨率
+        MOV CX, VBEMODE
+        MOV AX, 0x4f01
+        INT 0x10
+        CMP AX, 0x004f
+        JNE scrn320
+
+; 确认画面模式
+; 如果不满足以下条件则采用320*200分辨率
+        ; 判断颜色数是不是8
+        CMP BYTE [ES:DI+0x19], 8
+        JNE scrn320
+        ; 判断是不是调色板模式（模式4）
+        CMP BYTE [ES:DI+0x1b], 4
+        JNE scrn320
+        ; 判断画面模式的第8位是否是1
+        MOV AX, [ES:DI+0x00]
+        AND AX, 0x0080
+        JZ  scrn320
+
+; 切换画面模式
+        MOV BX, VBEMODE+0x4000
+        MOV AX, 0x4f02
+        INT 0x10
+        MOV BYTE [VMODE], 8
+        MOV AX,[ES:DI+0x12]
+        MOV [SCRNX], AX
+        MOV AX,[ES:DI+0x14]
+        MOV [SCRNY], AX
+        ; 这里原著写的有问题，机器还没有进入保护模式，32位的寄存器还是无法使用的
+        ; 下述写法相当于以下两句，只不过使用16位寄存器完成
+        ; MOV EAX, [ES:DI+0x28]
+        ; MOV [VRAM], EAX
+        MOV AX, [ES:DI+0x28]
+        MOV DX, [ES:DI+0X2a]
+        MOV [VRAM], AX
+        MOV [VRAM+2], DX
+        JMP keystatus
+
+;320*200的分辨率
+scrn320:
+        MOV AL, 0x13                        ; VGA显卡，320x200x8bit
+        MOV AH, 0x00
+        INT 0x10
+        MOV BYTE [VMODE], 8                 ; 记录画面模式
+        MOV WORD [SCRNX], 320
+        MOV WORD [SCRNY], 200
+        MOV DWORD [VRAM], 0x000a0000
 
 ; 用BIOS获得键盘上各种LED指示灯的状态
-MOV AH, 0x02
-INT 0x16
-MOV [LEDS], AL
+keystatus:
+        MOV AH, 0x02
+        INT 0x16
+        MOV [LEDS], AL
 
 ; PIC关闭一切中断
 ; 由于AT兼容机的规格，PIC的初始化必须在CLI之前进行，否则有时会挂起
