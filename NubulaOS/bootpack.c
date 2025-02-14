@@ -131,15 +131,15 @@ void HariMain(void) {
 
 	// 系统主循环
 	for (;;) {
-		sprintf(s, "%010d", timerctl.count);
-		putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
+		//sprintf(s, "%010d", timerctl.count);
+		//putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
 
 		// 屏蔽中断
 		io_cli();
 		// 判断是否有键盘输入，或者鼠标输入，或者定时器超时
 		// 如果输入缓冲中没有任何的数据，则进入休眠状态
 		if (fifo32_status(&fifo) == 0) {
-			io_sti();
+			io_stihlt();
 		}
 		// 有中断
 		else {
@@ -149,6 +149,11 @@ void HariMain(void) {
 			if (i >=256 && i <= 511) {
 				sprintf(s, "%02x", i - 256);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+				if (i < 256 + 0x54) {
+					s[0] = keytable[i -256];
+					s[1] = 0;
+					putfonts8_asc_sht(sht_win, 40, 28, COL8_FFFFFF, COL8_008484, s, 1);
+				}
 			}
 			// 如果有鼠标输入，则显示鼠标输入
 			else if (i >= 512 && i <=767) {
