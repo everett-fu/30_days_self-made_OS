@@ -18,6 +18,7 @@
 
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
+void make_textbox8(struct SHEET *sht, int x0, int y0, int x1, int y1, int c);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
@@ -34,6 +35,10 @@ void HariMain(void) {
 	struct SHTCTL *shtctl;
 	struct SHEET *sht_back, *sht_mouse, *sht_win;
 	unsigned char *buf_back, *buf_mouse[256], *buf_win;
+
+	int cursor_x, cursor_c;
+	cursor_x = 8;
+	cursor_c = COL8_FFFFFF;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -103,7 +108,8 @@ void HariMain(void) {
 	// 将鼠标指针放置到鼠标图层之中
 	init_mouse_cursor8(buf_mouse, 99);
 	// 将窗口放置到窗口图层之中
-	make_window8(buf_win, 160, 52, "counter");
+	make_window8(buf_win, 160, 52, "editor");
+	make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
 
@@ -149,10 +155,21 @@ void HariMain(void) {
 			if (i >=256 && i <= 511) {
 				sprintf(s, "%02x", i - 256);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
-				if (i < 256 + 0x54) {
-					s[0] = keytable[i -256];
-					s[1] = 0;
-					putfonts8_asc_sht(sht_win, 40, 28, COL8_FFFFFF, COL8_008484, s, 1);
+				if (i < 256 + 0x59) {
+					if (keytable[i - 256] != 0 && cursor_x < 144) {
+						s[0] = keytable[i -256];
+						s[1] = 0;
+						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
+						cursor_x += 8;
+					}
+					// 退格键
+					else if (i == 256 + 0x0e && cursor_x > 8) {
+						// 把光标的位置变成背景颜色，再改上一个字符的颜色
+						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
+						cursor_x -=8;
+						boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+						sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+					}
 				}
 			}
 			// 如果有鼠标输入，则显示鼠标输入
@@ -200,17 +217,18 @@ void HariMain(void) {
 			else if (i == 3) {
 				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
 			}
-			else if (i == 1) {
-				timer_init(timer3, &fifo, 0);
-				boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+			else if (i <= 1) {
+				if (i == 1) {
+					timer_init(timer3, &fifo, 0);
+					cursor_c = COL8_000000;
+				}
+				else if (i == 0) {
+					timer_init(timer3, &fifo, 1);
+					cursor_c = COL8_FFFFFF;
+				}
 				timer_settime(timer3, 50);
-				sheet_refresh(sht_back, 8, 96, 16, 112);
-			}
-			else if (i == 0){
-				timer_init(timer3, &fifo, 1);
-				boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
-				timer_settime(timer3, 50);
-				sheet_refresh(sht_back, 8, 96, 16, 112);
+				boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
 			}
 		}
 	}
@@ -286,5 +304,28 @@ void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, i
 	boxfill8(sht->buf, sht->bxsize, b, x, y, x + l * 8 - 1, y + 15);
 	putfonts8_asc(sht->buf, sht->bxsize, x, y, c, s);
 	sheet_refresh(sht, x, y, x + l * 8, y + 16);
+	return;
+}
+
+/**
+ * 绘制编辑器白色文本框
+ * @param sht		图层
+ * @param x0		起始位置x
+ * @param y0		起始位置y
+ * @param sx		文本框长度
+ * @param sy		文本框宽度
+ * @parma c			文本框颜色
+ */
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
+	int x1 = x0 + sx, y1 = y0 + sy;
+	boxfill8(sht->buf, sht->bxsize, COL8_848484, x0 - 2, y0 - 3, x1 + 1, y0 - 3);
+	boxfill8(sht->buf, sht->bxsize, COL8_848484, x0 - 3, y0 - 3, x0 - 3, y1 + 1);
+	boxfill8(sht->buf, sht->bxsize, COL8_FFFFFF, x0 - 3, y1 + 2, x1 + 1, y1 + 2);
+	boxfill8(sht->buf, sht->bxsize, COL8_FFFFFF, x1 + 2, y0 - 3, x1 + 2, y1 + 2);
+	boxfill8(sht->buf, sht->bxsize, COL8_000000, x0 - 1, y0 - 2, x1 + 0, y0 - 2);
+	boxfill8(sht->buf, sht->bxsize, COL8_000000, x0 - 2, y0 - 2, x0 - 2, y1 + 0);
+	boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x0 - 2, y1 + 1, x1 + 0, y1 + 1);
+	boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x1 + 1, y0 - 2, x1 + 1, y1 + 1);
+	boxfill8(sht->buf, sht->bxsize, c,           x0 - 1, y0 - 1, x1 + 0, y1 + 0);
 	return;
 }
