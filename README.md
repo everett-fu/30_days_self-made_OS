@@ -30,6 +30,12 @@ The project will first complete Hideki Kawai's original code and then proceed wi
 + `qemu-system-i386`
 + `mtools`
 
+### Project directory structure
+├─`build`: intermediate files<br>
+├─`images`: image files<br>
+├─`NubulaOS`: project source code<br>
+└─`z_tools`: auxiliary build tools<br>
+
 ### Running the Project
 At this stage, the project still follows Hideki Kawai's original code and has not undergone tool standardization. Therefore, the original development tools are still required, and the project is currently limited to Windows platforms.  
 The specific usage process is as follows:
@@ -53,7 +59,7 @@ The specific usage process is as follows:
 + [X] Day 11: Window Handling
 + [X] Day 12: Timer 1
 + [X] Day 13: Timer 2
-+ [ ] Day 14: Keyboard Input
++ [X] Day 14: Keyboard Input
 + [ ] Day 15: Multitasking 1
 + [ ] Day 16: Multitasking 2
 + [ ] Day 17: Command Line Window
