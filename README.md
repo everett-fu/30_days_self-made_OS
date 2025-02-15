@@ -12,7 +12,7 @@ Additionally, HaribOS was written a long time ago, using floppy disks + MBR + BI
 
 This project will rewrite parts of the original code using NASM + GCC + QEMU and replace some algorithms with more modern implementations. I hope this rewrite can provide some help to future developers. Therefore, I named this project *NubulaOS*, meaning "nebula," symbolizing clearing away the fog and offering guidance for those who follow.
 
-The project will first complete Hideki Kawai's original code and then proceed with refactoring, rewriting, and optimization. Currently, the content from Day 0 to Day 13 has been completed.
+The project will first complete Hideki Kawai's original code and then proceed with refactoring, rewriting, and optimization. Currently, the content from Day 0 to Day 14 has been completed.
 
 ## Project Features
 + Uses GCC and NASM as the toolchain, supporting cross-platform development
@@ -33,15 +33,15 @@ The project will first complete Hideki Kawai's original code and then proceed wi
 ### Project directory structure
 ├─`build`: intermediate files<br>
 ├─`images`: image files<br>
-├─`NubulaOS`: project source code<br>
+├─`src`: project source code<br>
 └─`z_tools`: auxiliary build tools<br>
 
 ### Running the Project
 At this stage, the project still follows Hideki Kawai's original code and has not undergone tool standardization. Therefore, the original development tools are still required, and the project is currently limited to Windows platforms.  
 The specific usage process is as follows:
 1. Clone this repository
-2. Download Hideki Kawai's *z_tools* package and place it in the project directory (at the same level as NubulaOS)
-3. Open `!cons_nt.bat` in NubulaOS and enter `make run` to launch QEMU
+2. Download Hideki Kawai's *z_tools* package and place it in the project directory (at the same level as src)
+3. Open `!cons_nt.bat` in src and enter `make run` to launch QEMU
 4. To exit, simply close QEMU
 
 ## Project Progress
