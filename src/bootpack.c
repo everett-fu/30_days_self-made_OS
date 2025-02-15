@@ -179,6 +179,7 @@ void HariMain(void) {
 					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
 					if ((mdec.btn & 0x01) != 0) {
 						s[1] = 'L';
+						sheet_slide(sht_win, mx - 80, my -8);
 					}
 					if ((mdec.btn & 0x02) != 0) {
 						s[3] = 'R';
