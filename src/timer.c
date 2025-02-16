@@ -78,8 +78,8 @@ void inthandler20(int *esp) {
 		}
 		// 超时
 		// 当定时器超时的时候，设置定时器状态，并向相应的缓冲区输出数据
-		timer_free(timer);
-//		timer->flags = TIMER_FLAGS_ALLOC;
+		//timer_free(timer);
+		timer->flags = TIMER_FLAGS_ALLOC;
 		fifo32_put(timer->fifo, timer->data);
 		// 将下一个定时器的地址赋值给timer
 		timer = timer->next_timer;
