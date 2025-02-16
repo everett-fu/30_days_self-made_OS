@@ -19,6 +19,21 @@
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int x1, int y1, int c);
+void task_b_main(void);
+
+// 任务状态段
+// 用于保存所有的寄存器信息与任务设置相关信息
+// 用于多任务的切换
+struct TSS32 {
+	// 任务设置相关信息，除了backlink会被写入，其他的几个寄存器不会被写入
+	int backlink, esp0, ss0, esp1, ss1, esp2, ss2, cr3;
+	// 32位寄存器
+	int eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi;
+	// 16位寄存器
+	int es, cs, ss, ds, fs, gs;
+	// 任务设置相关信息
+	int ldtr, iomap;
+};
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
@@ -40,6 +55,16 @@ void HariMain(void) {
 	cursor_x = 8;
 	cursor_c = COL8_FFFFFF;
 
+	// 创建两个任务
+	struct TSS32 tss_a, tss_b;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	// 为任务b创建的堆栈
+	int task_b_esp;
+	tss_a.ldtr = 0;
+	tss_a.iomap = 0x40000000;
+	tss_b.ldtr = 0;
+	tss_b.iomap = 0x40000000;
+
 	// 初始化GDT,IDT
 	init_gdtidt();
 
@@ -55,7 +80,7 @@ void HariMain(void) {
 	// 初始化FIFO缓冲区
 	fifo32_init(&fifo, 128, fifobuf);
 
-	//
+	// 申请定时器，并初始化与设置定时器
 	timer = timer_alloc();
 	timer_init(timer, &fifo, 10);
 	timer_settime(timer, 1000);
@@ -134,6 +159,31 @@ void HariMain(void) {
 	// 显示内存信息
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
+
+
+	// 设置任务切换所用的寄存器与段设置
+	set_segmdesc(gdt + 3, 103, (int)&tss_a, AR_TSS32);
+	set_segmdesc(gdt + 4, 103, (int)&tss_b, AR_TSS32);
+	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
+	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024;
+	load_tr(3 * 8);
+	tss_b.eip = (int) &task_b_main;
+	// IF = 1
+	tss_b.eflags = 0x00000202;
+	tss_b.eax = 0;
+	tss_b.ecx = 0;
+	tss_b.edx = 0;
+	tss_b.ebx = 0;
+	tss_b.esp = task_b_esp;
+	tss_b.ebp = 0;
+	tss_b.esi = 0;
+	tss_b.edi = 0;
+	tss_b.es = 1 * 8;
+	tss_b.cs = 2 * 8;
+	tss_b.ss = 1 * 8;
+	tss_b.ds = 1 * 8;
+	tss_b.fs = 1 * 8;
+	tss_b.gs = 1 * 8;
 
 	// 系统主循环
 	for (;;) {
@@ -214,6 +264,7 @@ void HariMain(void) {
 			// 定时器中断
 			else if (i == 10) {
 				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
+				taskswitch4();
 			}
 			else if (i == 3) {
 				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
@@ -329,4 +380,10 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 	boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x1 + 1, y0 - 2, x1 + 1, y1 + 1);
 	boxfill8(sht->buf, sht->bxsize, c,           x0 - 1, y0 - 1, x1 + 0, y1 + 0);
 	return;
+}
+
+void task_b_main(void){
+	for (;;) {
+		io_hlt();
+	}
 }
