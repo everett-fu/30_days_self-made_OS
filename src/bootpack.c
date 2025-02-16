@@ -18,7 +18,7 @@
 
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
-void make_textbox8(struct SHEET *sht, int x0, int y0, int x1, int y1, int c);
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 void task_b_main(void);
 
 // 任务状态段
@@ -41,7 +41,7 @@ void HariMain(void) {
 	char s[40];
 	int fifobuf[128];
 
-	struct TIMER *timer, *timer2, *timer3;
+	struct TIMER *timer, *timer2, *timer3, *timer_ts;
 	int mx, my, i;
 	struct MOUSE_DEC mdec;
 	unsigned int memtotal;
@@ -90,6 +90,10 @@ void HariMain(void) {
 	timer3 = timer_alloc();
 	timer_init(timer3, &fifo, 1);
 	timer_settime(timer3, 50);
+	// 任务切换的定时器
+	timer_ts = timer_alloc();
+	timer_init(timer_ts, &fifo, 2);
+	timer_settime(timer_ts, 2);
 
 	// 打开中断
 	io_out8(PIC0_IMR, 0xf8);                // PIC1和键盘许可(11111000)
@@ -184,6 +188,7 @@ void HariMain(void) {
 	tss_b.ds = 1 * 8;
 	tss_b.fs = 1 * 8;
 	tss_b.gs = 1 * 8;
+	*((int *) 0x0fec) = (int) sht_back;
 
 	// 系统主循环
 	for (;;) {
@@ -264,11 +269,16 @@ void HariMain(void) {
 			// 定时器中断
 			else if (i == 10) {
 				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
-				taskswitch4();
 			}
 			else if (i == 3) {
 				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
 			}
+			// 任务切换寄存器
+			else if (i == 2) {
+				farjmp(0, 4 * 8);
+				timer_settime(timer_ts, 2);
+			}
+			// 光标寄存器
 			else if (i <= 1) {
 				if (i == 1) {
 					timer_init(timer3, &fifo, 0);
@@ -385,24 +395,32 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 void task_b_main(void){
 	struct FIFO32 fifo;
 	int fifobuf[128];
-	struct TIMER *timer;
-	int i;
+	struct TIMER *timer_ts;
+	int i, count = 0;
+	char s[11];
+	struct SHEET *sht_back;
 
 	fifo32_init(&fifo, 128, fifobuf);
-	timer = timer_alloc();
-	timer_init(timer, &fifo, 1);
-	timer_settime(timer, 500);
+	timer_ts = timer_alloc();
+	timer_init(timer_ts, &fifo, 1);
+	timer_settime(timer_ts, 2);
+	sht_back = (struct SHEET *) *((int *) 0x0fec);
+
 
 	for (;;) {
+		count++;
+		sprintf(s, "%10d", count);
+		putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 10);
 		io_cli();
 		if (fifo32_status(&fifo) == 0) {
-			io_stihlt();
+			io_sti();
 		}
 		else {
 			i = fifo32_get(&fifo);
 			io_sti();
 			if (i == 1) {
-				taskswitch3();
+				farjmp(0, 3 * 8);
+				timer_settime(timer_ts, 2);
 			}
 		}
 	}
