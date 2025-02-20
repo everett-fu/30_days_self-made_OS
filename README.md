@@ -60,7 +60,7 @@ The specific usage process is as follows:
 + [X] Day 12: Timer 1
 + [X] Day 13: Timer 2
 + [X] Day 14: Keyboard Input
-+ [ ] Day 15: Multitasking 1
++ [X] Day 15: Multitasking 1
 + [ ] Day 16: Multitasking 2
 + [ ] Day 17: Command Line Window
 + [ ] Day 18: Command Line Commands

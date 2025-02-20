@@ -18,7 +18,8 @@
 
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
-void make_textbox8(struct SHEET *sht, int x0, int y0, int x1, int y1, int c);
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+void task_b_main(struct SHEET *sht_back);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
@@ -40,6 +41,16 @@ void HariMain(void) {
 	cursor_x = 8;
 	cursor_c = COL8_FFFFFF;
 
+	// 创建两个任务
+	struct TSS32 tss_a, tss_b;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	// 为任务b创建的堆栈
+	int task_b_esp;
+	tss_a.ldtr = 0;
+	tss_a.iomap = 0x40000000;
+	tss_b.ldtr = 0;
+	tss_b.iomap = 0x40000000;
+
 	// 初始化GDT,IDT
 	init_gdtidt();
 
@@ -55,7 +66,7 @@ void HariMain(void) {
 	// 初始化FIFO缓冲区
 	fifo32_init(&fifo, 128, fifobuf);
 
-	//
+	// 申请定时器，并初始化与设置定时器
 	timer = timer_alloc();
 	timer_init(timer, &fifo, 10);
 	timer_settime(timer, 1000);
@@ -134,6 +145,33 @@ void HariMain(void) {
 	// 显示内存信息
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
+
+
+	// 设置任务切换所用的寄存器与段设置
+	set_segmdesc(gdt + 3, 103, (int)&tss_a, AR_TSS32);
+	set_segmdesc(gdt + 4, 103, (int)&tss_b, AR_TSS32);
+	load_tr(3 * 8);
+	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
+	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+	*((int *)(task_b_esp + 4)) = (int)sht_back;
+	tss_b.eip = (int) &task_b_main;
+	// IF = 1
+	tss_b.eflags = 0x00000202;
+	tss_b.eax = 0;
+	tss_b.ecx = 0;
+	tss_b.edx = 0;
+	tss_b.ebx = 0;
+	tss_b.esp = task_b_esp;
+	tss_b.ebp = 0;
+	tss_b.esi = 0;
+	tss_b.edi = 0;
+	tss_b.es = 1 * 8;
+	tss_b.cs = 2 * 8;
+	tss_b.ss = 1 * 8;
+	tss_b.ds = 1 * 8;
+	tss_b.fs = 1 * 8;
+	tss_b.gs = 1 * 8;
+	mt_init();
 
 	// 系统主循环
 	for (;;) {
@@ -218,6 +256,7 @@ void HariMain(void) {
 			else if (i == 3) {
 				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
 			}
+			// 光标寄存器
 			else if (i <= 1) {
 				if (i == 1) {
 					timer_init(timer3, &fifo, 0);
@@ -329,4 +368,52 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 	boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x1 + 1, y0 - 2, x1 + 1, y1 + 1);
 	boxfill8(sht->buf, sht->bxsize, c,           x0 - 1, y0 - 1, x1 + 0, y1 + 0);
 	return;
+}
+
+/**
+ * 任务b
+ * @param sht_back		要显示的图层地址
+*/
+void task_b_main(struct SHEET *sht_back){
+	// 缓冲区
+	struct FIFO32 fifo;
+	// 缓冲区数据
+	int fifobuf[128];
+	// 界面刷新定时器
+	struct TIMER *timer_put, *timer_1;
+	int i, count = 0, count0 = 0;
+	char s[12];
+
+	fifo32_init(&fifo, 128, fifobuf);
+	timer_put = timer_alloc();
+	timer_init(timer_put, &fifo, 1);
+//	timer_settime(timer_put, 1);
+	timer_1 = timer_alloc();
+	timer_init(timer_1, &fifo, 100);
+	timer_settime(timer_1, 100);
+
+
+	for (;;) {
+		count++;
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+		}
+		else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 1) {
+				sprintf(s, "%11d", count);
+				putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
+				timer_settime(timer_put, 1);
+			}
+			else if (i == 100) {
+				sprintf(s, "%11d", count - count0);
+				putfonts8_asc_sht(sht_back, 0, 128, COL8_FFFFFF, COL8_008484, s, 11);
+				count0 = count;
+				timer_settime(timer_1, 100);
+
+			}
+		}
+	}
 }

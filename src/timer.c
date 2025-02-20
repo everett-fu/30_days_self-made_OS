@@ -11,7 +11,7 @@
  * - inthandler20: 处理定时器中断
  * - timer_alloc: 找到一个未使用的定时器，把该定时器状态改为已启动，并返回该定时器的地址
  * - timer_free: 将一个定时器关闭
- * - timer_init: 设置定时器超时时间与超时后显示的字符
+ * - timer_init: 设置定时器超时以后要写入缓冲区的地址与超时后显示的字符
  * - timer_settime: 设置定时器超时时间
  *
  * Usage:
@@ -63,6 +63,7 @@ void init_pit(void) {
  */
 void inthandler20(int *esp) {
 	struct TIMER *timer;
+	char ts = 0;
 	io_out8(PIC0_OCW2, 0x60);	/* 把IRQ-00信号接收完了的信息通知给PIC */
 	timerctl.count++;
 	// 还没有到下一个超时的时间，直接退出
@@ -77,15 +78,23 @@ void inthandler20(int *esp) {
 			break;
 		}
 		// 超时
-		// 当定时器超时的时候，设置定时器状态，并向相应的缓冲区输出数据
-		timer_free(timer);
-//		timer->flags = TIMER_FLAGS_ALLOC;
-		fifo32_put(timer->fifo, timer->data);
+		// 如果不是任务定时器且当定时器超时的时候，设置定时器状态，并向相应的缓冲区输出数据
+		//timer_free(timer);
+		timer->flags = TIMER_FLAGS_ALLOC;
+		if (timer != mt_timer) {
+			fifo32_put(timer->fifo, timer->data);
+		}
+		else {
+			ts = 1;
+		}
 		// 将下一个定时器的地址赋值给timer
 		timer = timer->next_timer;
 	}
 	timerctl.timer_head = timer;
 	timerctl.next_timeout = timer->timeout;
+	if (ts != 0) {
+		mt_taskswitch();
+	}
 	return;
 }
 
@@ -114,7 +123,7 @@ void timer_free(struct TIMER *timer) {
 }
 
 /**
- * 设置定时器超时时间与超时后显示的字符
+ * 设置定时器超时以后要写入缓冲区的地址与超时后显示的字符
  * @param timer		要设置的定时器的地址
  * @param fifo		要写入的缓冲区
  * @param data		要写入的数据

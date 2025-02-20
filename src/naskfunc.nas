@@ -16,6 +16,7 @@
 	GLOBAL _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
 	EXTERN _inthandler20, _inthandler21, _inthandler27, _inthandler2c
 	GLOBAL _load_cr0, _store_cr0, _memtest_sub
+	GLOBAL _load_tr, _farjmp
 
 ; 函数定义
 [SECTION .text]
@@ -220,3 +221,17 @@ mts_fin:
 		POP		ESI
 		POP		EDI
 		RET
+
+; 给tr寄存器赋值
+_load_tr:                       ; void load_tr(int tr);
+        LTR     [ESP + 4]
+        RET
+
+; far模式跳转
+; near与far模式跳转
+; near只改变ip
+; far模式同时改变cs与ip
+_farjmp:                        ; void farjmp(int eip, int cs);
+        JMP     FAR [ESP + 4]   ; eip, cs
+        ; 任务切换回来的时候要知道现在要返回的函数是哪个
+        RET
