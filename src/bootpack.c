@@ -19,7 +19,7 @@
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
-void task_b_main(void);
+void task_b_main(struct SHEET *sht_back);
 
 // 任务状态段
 // 用于保存所有的寄存器信息与任务设置相关信息
@@ -169,7 +169,8 @@ void HariMain(void) {
 	set_segmdesc(gdt + 3, 103, (int)&tss_a, AR_TSS32);
 	set_segmdesc(gdt + 4, 103, (int)&tss_b, AR_TSS32);
 	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
-	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024;
+	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+	*((int *)(task_b_esp + 4)) = (int)sht_back;
 	load_tr(3 * 8);
 	tss_b.eip = (int) &task_b_main;
 	// IF = 1
@@ -188,7 +189,6 @@ void HariMain(void) {
 	tss_b.ds = 1 * 8;
 	tss_b.fs = 1 * 8;
 	tss_b.gs = 1 * 8;
-	*((int *) 0x0fec) = (int) sht_back;
 
 	// 系统主循环
 	for (;;) {
@@ -395,7 +395,7 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 /**
  * 任务b
 */
-void task_b_main(void){
+void task_b_main(struct SHEET *sht_back){
 	// 缓冲区
 	struct FIFO32 fifo;
 	// 缓冲区数据
@@ -404,7 +404,6 @@ void task_b_main(void){
 	struct TIMER *timer_ts, *timer_put;
 	int i, count = 0;
 	char s[12];
-	struct SHEET *sht_back;
 
 	fifo32_init(&fifo, 128, fifobuf);
 	timer_ts = timer_alloc();
@@ -413,7 +412,6 @@ void task_b_main(void){
 	timer_put = timer_alloc();
 	timer_init(timer_put, &fifo, 1);
 	timer_settime(timer_put, 1);
-	sht_back = (struct SHEET *) *((int *) 0x0fec);
 
 	for (;;) {
 		count++;
