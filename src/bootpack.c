@@ -21,27 +21,13 @@ void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, i
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 void task_b_main(struct SHEET *sht_back);
 
-// 任务状态段
-// 用于保存所有的寄存器信息与任务设置相关信息
-// 用于多任务的切换
-struct TSS32 {
-	// 任务设置相关信息，除了backlink会被写入，其他的几个寄存器不会被写入
-	int backlink, esp0, ss0, esp1, ss1, esp2, ss2, cr3;
-	// 32位寄存器
-	int eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi;
-	// 16位寄存器
-	int es, cs, ss, ds, fs, gs;
-	// 任务设置相关信息
-	int ldtr, iomap;
-};
-
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	struct FIFO32 fifo;
 	char s[40];
 	int fifobuf[128];
 
-	struct TIMER *timer, *timer2, *timer3, *timer_ts;
+	struct TIMER *timer, *timer2, *timer3;
 	int mx, my, i;
 	struct MOUSE_DEC mdec;
 	unsigned int memtotal;
@@ -90,10 +76,6 @@ void HariMain(void) {
 	timer3 = timer_alloc();
 	timer_init(timer3, &fifo, 1);
 	timer_settime(timer3, 50);
-	// 任务切换的定时器
-	timer_ts = timer_alloc();
-	timer_init(timer_ts, &fifo, 2);
-	timer_settime(timer_ts, 2);
 
 	// 打开中断
 	io_out8(PIC0_IMR, 0xf8);                // PIC1和键盘许可(11111000)
@@ -168,10 +150,10 @@ void HariMain(void) {
 	// 设置任务切换所用的寄存器与段设置
 	set_segmdesc(gdt + 3, 103, (int)&tss_a, AR_TSS32);
 	set_segmdesc(gdt + 4, 103, (int)&tss_b, AR_TSS32);
+	load_tr(3 * 8);
 	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
 	task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
 	*((int *)(task_b_esp + 4)) = (int)sht_back;
-	load_tr(3 * 8);
 	tss_b.eip = (int) &task_b_main;
 	// IF = 1
 	tss_b.eflags = 0x00000202;
@@ -189,6 +171,7 @@ void HariMain(void) {
 	tss_b.ds = 1 * 8;
 	tss_b.fs = 1 * 8;
 	tss_b.gs = 1 * 8;
+	mt_init();
 
 	// 系统主循环
 	for (;;) {
@@ -272,11 +255,6 @@ void HariMain(void) {
 			}
 			else if (i == 3) {
 				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
-			}
-			// 任务切换寄存器
-			else if (i == 2) {
-				farjmp(0, 4 * 8);
-				timer_settime(timer_ts, 2);
 			}
 			// 光标寄存器
 			else if (i <= 1) {
@@ -394,21 +372,19 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 
 /**
  * 任务b
+ * @param sht_back		要显示的图层地址
 */
 void task_b_main(struct SHEET *sht_back){
 	// 缓冲区
 	struct FIFO32 fifo;
 	// 缓冲区数据
 	int fifobuf[128];
-	// 任务切换定时器，界面刷新定时器
-	struct TIMER *timer_ts, *timer_put, *timer_1;
+	// 界面刷新定时器
+	struct TIMER *timer_put, *timer_1;
 	int i, count = 0, count0 = 0;
 	char s[12];
 
 	fifo32_init(&fifo, 128, fifobuf);
-	timer_ts = timer_alloc();
-	timer_init(timer_ts, &fifo, 2);
-	timer_settime(timer_ts, 2);
 	timer_put = timer_alloc();
 	timer_init(timer_put, &fifo, 1);
 //	timer_settime(timer_put, 1);
@@ -430,10 +406,6 @@ void task_b_main(struct SHEET *sht_back){
 				sprintf(s, "%11d", count);
 				putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
 				timer_settime(timer_put, 1);
-			}
-			else if (i == 2) {
-				farjmp(0, 3 * 8);
-				timer_settime(timer_ts, 2);
 			}
 			else if (i == 100) {
 				sprintf(s, "%11d", count - count0);

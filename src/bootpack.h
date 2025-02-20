@@ -241,3 +241,21 @@ struct TIMER * timer_alloc(void);
 void timer_free(struct TIMER *timer);
 void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);
+
+// mtask.c
+// 任务状态段
+// 用于保存所有的寄存器信息与任务设置相关信息
+// 用于多任务的切换
+struct TSS32 {
+	// 任务设置相关信息，除了backlink会被写入，其他的几个寄存器不会被写入
+	int backlink, esp0, ss0, esp1, ss1, esp2, ss2, cr3;
+	// 32位寄存器
+	int eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi;
+	// 16位寄存器
+	int es, cs, ss, ds, fs, gs;
+	// 任务设置相关信息
+	int ldtr, iomap;
+};
+extern struct TIMER *mt_timer;
+void mt_init(void);
+void mt_taskswitch(void);
