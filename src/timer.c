@@ -81,7 +81,7 @@ void inthandler20(int *esp) {
 		// 如果不是任务定时器且当定时器超时的时候，设置定时器状态，并向相应的缓冲区输出数据
 		//timer_free(timer);
 		timer->flags = TIMER_FLAGS_ALLOC;
-		if (timer != mt_timer) {
+		if (timer != task_timer) {
 			fifo32_put(timer->fifo, timer->data);
 		}
 		else {
@@ -93,7 +93,7 @@ void inthandler20(int *esp) {
 	timerctl.timer_head = timer;
 	timerctl.next_timeout = timer->timeout;
 	if (ts != 0) {
-		mt_taskswitch();
+		task_switch();
 	}
 	return;
 }

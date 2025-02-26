@@ -243,7 +243,11 @@ void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);
 
 // mtask.c
-// 任务状态段
+// 最大任务数量
+#define MAX_TASKS 1000
+// 定义GDT从几号开始分配TSS
+#define TASK_GDT0 3
+// 任务状态相关的段
 // 用于保存所有的寄存器信息与任务设置相关信息
 // 用于多任务的切换
 struct TSS32 {
@@ -256,6 +260,28 @@ struct TSS32 {
 	// 任务设置相关信息
 	int ldtr, iomap;
 };
-extern struct TIMER *mt_timer;
-void mt_init(void);
-void mt_taskswitch(void);
+
+// 单个任务数据
+struct TASK {
+	// 任务的GDT的编号, 任务状态
+	int sel, flags;
+	// 任务状态相关的段
+	struct TSS32 tss;
+};
+
+// 任务控制器
+struct TASKCTL {
+	// 当前运行任务的数量
+	int running_num;
+	// 当前运行任务的编号
+	int now_task;
+	struct TASK *tasks[MAX_TASKS];
+	struct TASK tasks0[MAX_TASKS];
+};
+
+extern struct TASKCTL *taskctl;
+extern struct TIMER *task_timer;
+struct TASK * task_init(struct MEMMAN *memman);
+struct TASK * task_alloc(void);
+void task_run(struct TASK *task);
+void task_switch(void);
