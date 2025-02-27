@@ -247,6 +247,12 @@ void timer_settime(struct TIMER *timer, unsigned int timeout);
 #define MAX_TASKS 1000
 // 定义GDT从几号开始分配TSS
 #define TASK_GDT0 3
+// 关闭任务
+#define TASK_FLAGS_CLOSE 0
+// 启用任务
+#define TASK_FLAGS_ALLOC 1
+// 任务使用中
+#define TASK_FLAGS_USING 2
 // 任务状态相关的段
 // 用于保存所有的寄存器信息与任务设置相关信息
 // 用于多任务的切换
@@ -285,3 +291,4 @@ struct TASK * task_init(struct MEMMAN *memman);
 struct TASK * task_alloc(void);
 void task_run(struct TASK *task);
 void task_switch(void);
+void task_sleep(struct TASK *task);

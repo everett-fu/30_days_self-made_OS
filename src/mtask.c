@@ -10,6 +10,8 @@
  * - task_alloc: 选择一个未使用的任务结构体，并初始化任务结构体
  * - task_run: 将任务添加到tasks的末尾，并将正在运行的任务数加1
  * - task_switch: 切换任务，公平时间片算法
+ * - task_sleep: 任务休眠
+ *
  * Usage:
  */
 #include "bootpack.h"
@@ -18,12 +20,6 @@ struct TASKCTL *taskctl;
 struct TIMER *task_timer;
 int mt_tr;
 
-// 关闭任务
-#define TASK_FLAGS_CLOSE 0
-// 启用任务
-#define TASK_FLAGS_ALLOC 1
-// 任务使用中
-#define TASK_FLAGS_USING 2
 
 /**
  * 初始化任务控制块
@@ -119,6 +115,50 @@ void task_switch(void) {
 		}
 		// 跳转到下个任务执行
 		farjmp(0, taskctl->tasks[taskctl->now_task]->sel);
+	}
+	return;
+}
+
+/**
+ * 任务休眠
+ * @param task			要休眠的任务结构体的地址
+ */
+void task_sleep(struct TASK *task) {
+	int i;
+	char ts = 0;
+	// 如果任务处于唤醒状态
+	if (task->flags == TASK_FLAGS_USING) {
+		// 如果任务是正在执行的任务
+		if (task == taskctl->tasks[taskctl->now_task]) {
+			ts = 1;
+		}
+		// 找到任务在数组中的位置
+		for (i = 0; i < taskctl->running_num; i++) {
+			if (taskctl->tasks[i] == task) {
+				break;
+			}
+		}
+		// 正在使用的任务减1
+		taskctl->running_num--;
+		// 如果要休眠的任务在正在运行的任务的前面
+		if (i < taskctl->now_task) {
+			// 正在运行的任务编号减1
+			taskctl->now_task--;
+		}
+		// 从要休眠的任务开始，将后面的任务向前平移一个位置，即覆盖要休眠的任务
+		for (; i < taskctl->running_num; i++) {
+			taskctl->tasks[i] = taskctl->tasks[i + 1];
+		}
+		// 将该任务置为就绪态
+		task->flags = TASK_FLAGS_ALLOC;
+		// 如果要休眠的任务是正在执行的任务
+		if (ts != 0) {
+			// 万一要休眠的任务为最后一个，经过前面的步骤以后会出现now_task（要休眠的任务编号）>running_num（全部运行的任务数）
+			if (taskctl->now_task >= taskctl->running_num) {
+				taskctl->now_task = 0;
+			}
+			farjmp(0, taskctl->tasks[taskctl->now_task]->sel);
+		}
 	}
 	return;
 }
