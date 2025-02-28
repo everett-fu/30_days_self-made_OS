@@ -38,8 +38,6 @@ void HariMain(void) {
 	unsigned char *buf_back, buf_mouse[256], *buf_win;
 
 	int cursor_x, cursor_c;
-	cursor_x = 8;
-	cursor_c = COL8_FFFFFF;
 
 	// 创建任务a,b
 	struct TASK *task_a, *task_b;
@@ -86,40 +84,70 @@ void HariMain(void) {
 	memman_free(memman, 0x00001000,0x0009e000);
 	memman_free(memman, 0x00400000,memtotal - 0x00400000);
 
+	// 初始化任务
+	task_a = task_init(memman);
+	fifo.task = task_a;
+
 	// 初始化调色板
 	init_palette();
 
 	// 初始化图层控制
 	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+
+	// 背景图层
 	// 创建背景图层
 	sht_back = sheet_alloc(shtctl);
-	// 创建鼠标图层
-	sht_mouse = sheet_alloc(shtctl);
-	// 创建窗口图层
-	sht_win = sheet_alloc(shtctl);
 	// 分配背景图层缓冲区
 	buf_back = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
-	// 分配窗口图层缓冲区
-	buf_win = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
 	// 设置背景图层大小和透明色
 	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1);
-	// 设置鼠标图层大小和透明色
-	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
-	// 设置窗口图层大小和透明色
-	sheet_setbuf(sht_win, buf_win, 160, 52, -1);
 	// 将类Windows效果放置到背景图层之中
 	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+
+	// 鼠标图层
+	// 创建鼠标图层
+	sht_mouse = sheet_alloc(shtctl);
+	// 设置鼠标图层大小和透明色
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
 	// 将鼠标指针放置到鼠标图层之中
 	init_mouse_cursor8(buf_mouse, 99);
-	// 将窗口放置到窗口图层之中
-	make_window8(buf_win, 160, 52, "editor");
-	make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
-	// 背景色填充
-	sheet_slide(sht_back, 0, 0);
-
 	// 计算显示中间位置
 	mx = (binfo->scrnx - 16) / 2;
 	my = (binfo->scrny - 28 - 16) / 2;
+
+	// 窗口a图层
+	// 创建窗口图层
+	sht_win = sheet_alloc(shtctl);
+	// 分配窗口图层缓冲区
+	buf_win = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	// 设置窗口图层大小和透明色
+	sheet_setbuf(sht_win, buf_win, 160, 52, -1);
+	// 将窗口放置到窗口图层之中
+	make_window8(buf_win, 160, 52, "editor");
+	// 将文本框放置到窗口图层中
+	make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
+	// 光标位置
+	cursor_x = 8;
+	// 光标颜色
+	cursor_c = COL8_FFFFFF;
+
+
+	// 任务设置
+	task_b = task_alloc();
+	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
+	task_b->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+	task_b->tss.eip = (int) &task_b_main;
+	task_b->tss.es = 1 * 8;
+	task_b->tss.cs = 2 * 8;
+	task_b->tss.ss = 1 * 8;
+	task_b->tss.ds = 1 * 8;
+	task_b->tss.fs = 1 * 8;
+	task_b->tss.gs = 1 * 8;
+	*((int *)(task_b->tss.esp + 4)) = (int)sht_back;
+	task_run(task_b);
+
+	// 背景色填充
+	sheet_slide(sht_back, 0, 0);
 	// 显示鼠标
 	sheet_slide(sht_mouse, mx, my);
 	// 显示窗口
@@ -138,22 +166,6 @@ void HariMain(void) {
 	// 显示内存信息
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
-
-	// 初始化任务
-	task_a = task_init(memman);
-	fifo.task = task_a;
-	task_b = task_alloc();
-	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
-	task_b->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
-	task_b->tss.eip = (int) &task_b_main;
-	task_b->tss.es = 1 * 8;
-	task_b->tss.cs = 2 * 8;
-	task_b->tss.ss = 1 * 8;
-	task_b->tss.ds = 1 * 8;
-	task_b->tss.fs = 1 * 8;
-	task_b->tss.gs = 1 * 8;
-	*((int *)(task_b->tss.esp + 4)) = (int)sht_back;
-	task_run(task_b);
 
 	// 系统主循环
 	for (;;) {
