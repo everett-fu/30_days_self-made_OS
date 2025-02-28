@@ -18,7 +18,7 @@
 
 struct TASKCTL *taskctl;
 struct TIMER *task_timer;
-int mt_tr;
+
 
 
 /**

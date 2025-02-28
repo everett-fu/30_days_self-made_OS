@@ -50,8 +50,10 @@ struct FIFO32 {
 	int *buf;
 	// 下一个写入位置，下一个读取位置，缓冲区大小，缓冲区剩余大小，缓冲区溢出标志
 	int next_w, next_r, size, free, flags;
+	// 当有输入的时候唤醒以下程序
+	struct TASK *task;
 };
-void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf, struct TASK *task);
 int fifo32_put(struct FIFO32 *fifo, int data);
 int fifo32_get(struct FIFO32 *fifo);
 int fifo32_status(struct FIFO32 *fifo);

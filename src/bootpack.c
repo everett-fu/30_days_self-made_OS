@@ -35,7 +35,7 @@ void HariMain(void) {
 
 	struct SHTCTL *shtctl;
 	struct SHEET *sht_back, *sht_mouse, *sht_win;
-	unsigned char *buf_back, *buf_mouse[256], *buf_win;
+	unsigned char *buf_back, buf_mouse[256], *buf_win;
 
 	int cursor_x, cursor_c;
 	cursor_x = 8;
@@ -57,7 +57,7 @@ void HariMain(void) {
 	io_sti();
 
 	// 初始化FIFO缓冲区
-	fifo32_init(&fifo, 128, fifobuf);
+	fifo32_init(&fifo, 128, fifobuf, 0);
 
 	// 申请定时器，并初始化与设置定时器
 	timer = timer_alloc();
@@ -141,6 +141,7 @@ void HariMain(void) {
 
 	// 初始化任务
 	task_a = task_init(memman);
+	fifo.task = task_a;
 	task_b = task_alloc();
 	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
 	task_b->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
@@ -367,10 +368,10 @@ void task_b_main(struct SHEET *sht_back){
 	int i, count = 0, count0 = 0;
 	char s[12];
 
-	fifo32_init(&fifo, 128, fifobuf);
+	fifo32_init(&fifo, 128, fifobuf, 0);
 	timer_put = timer_alloc();
-//	timer_init(timer_put, &fifo, 1);
-	timer_settime(timer_put, 1);
+	timer_init(timer_put, &fifo, 1);
+//	timer_settime(timer_put, 1);
 	timer_1 = timer_alloc();
 	timer_init(timer_1, &fifo, 100);
 	timer_settime(timer_1, 100);
@@ -395,7 +396,6 @@ void task_b_main(struct SHEET *sht_back){
 				putfonts8_asc_sht(sht_back, 0, 128, COL8_FFFFFF, COL8_008484, s, 11);
 				count0 = count;
 				timer_settime(timer_1, 100);
-
 			}
 		}
 	}
