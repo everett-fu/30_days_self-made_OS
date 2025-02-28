@@ -27,20 +27,20 @@ void HariMain(void) {
 	char s[40];
 	int fifobuf[128];
 
-	struct TIMER *timer, *timer2, *timer3;
+	struct TIMER *timer;
 	int mx, my, i;
 	struct MOUSE_DEC mdec;
 	unsigned int memtotal;
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
-	struct SHEET *sht_back, *sht_mouse, *sht_win;
-	unsigned char *buf_back, buf_mouse[256], *buf_win;
+	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_win_b[3];
+	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_win_b;
 
 	int cursor_x, cursor_c;
 
 	// 创建任务a,b
-	struct TASK *task_a, *task_b;
+	struct TASK *task_a, *task_b[3];
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -59,14 +59,8 @@ void HariMain(void) {
 
 	// 申请定时器，并初始化与设置定时器
 	timer = timer_alloc();
-	timer_init(timer, &fifo, 10);
-	timer_settime(timer, 1000);
-	timer2 = timer_alloc();
-	timer_init(timer2, &fifo, 3);
-	timer_settime(timer2, 300);
-	timer3 = timer_alloc();
-	timer_init(timer3, &fifo, 1);
-	timer_settime(timer3, 50);
+	timer_init(timer, &fifo, 1);
+	timer_settime(timer, 50);
 
 	// 打开中断
 	io_out8(PIC0_IMR, 0xf8);                // PIC1和键盘许可(11111000)
@@ -119,45 +113,58 @@ void HariMain(void) {
 	// 创建窗口图层
 	sht_win = sheet_alloc(shtctl);
 	// 分配窗口图层缓冲区
-	buf_win = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	buf_win = (unsigned char *) memman_alloc_4k(memman, 144 * 52);
 	// 设置窗口图层大小和透明色
-	sheet_setbuf(sht_win, buf_win, 160, 52, -1);
+	sheet_setbuf(sht_win, buf_win, 144, 52, -1);
 	// 将窗口放置到窗口图层之中
-	make_window8(buf_win, 160, 52, "editor");
+	make_window8(buf_win, 144, 52, "editor");
 	// 将文本框放置到窗口图层中
-	make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
+	make_textbox8(sht_win, 8, 28, 128, 16, COL8_FFFFFF);
 	// 光标位置
 	cursor_x = 8;
 	// 光标颜色
 	cursor_c = COL8_FFFFFF;
 
-
-	// 任务设置
-	task_b = task_alloc();
-	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
-	task_b->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
-	task_b->tss.eip = (int) &task_b_main;
-	task_b->tss.es = 1 * 8;
-	task_b->tss.cs = 2 * 8;
-	task_b->tss.ss = 1 * 8;
-	task_b->tss.ds = 1 * 8;
-	task_b->tss.fs = 1 * 8;
-	task_b->tss.gs = 1 * 8;
-	*((int *)(task_b->tss.esp + 4)) = (int)sht_back;
-	task_run(task_b);
+	// 窗口b图层
+	for (i = 0; i < 3; i++) {
+		sht_win_b[i] = sheet_alloc(shtctl);
+		buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
+		sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
+		sprintf(s, "task_b%d", i);
+		make_window8(buf_win_b, 144, 52, s);
+		// 任务设置
+		task_b[i] = task_alloc();
+		// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
+		task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+		task_b[i]->tss.eip = (int) &task_b_main;
+		task_b[i]->tss.es = 1 * 8;
+		task_b[i]->tss.cs = 2 * 8;
+		task_b[i]->tss.ss = 1 * 8;
+		task_b[i]->tss.ds = 1 * 8;
+		task_b[i]->tss.fs = 1 * 8;
+		task_b[i]->tss.gs = 1 * 8;
+		*((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
+		task_run(task_b[i]);
+	}
 
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
 	// 显示鼠标
 	sheet_slide(sht_mouse, mx, my);
 	// 显示窗口
-	sheet_slide(sht_win, 80, 72);
+	sheet_slide(sht_win, 8, 56);
+	sheet_slide(sht_win_b[0], 168, 56);
+	sheet_slide(sht_win_b[1], 8, 116);
+	sheet_slide(sht_win_b[2], 168, 116);
 	// 设置背景图层高度
 	sheet_updown(sht_back, 0);
-	// 设置鼠标图层高度
-	sheet_updown(sht_mouse, 2);
 	// 设置窗口图层高度
 	sheet_updown(sht_win, 1);
+	sheet_updown(sht_win_b[0], 1);
+	sheet_updown(sht_win_b[1], 1);
+	sheet_updown(sht_win_b[2], 1);
+	// 设置鼠标图层高度
+	sheet_updown(sht_mouse, 2);
 
 	// 显示鼠标坐标
 	sprintf(s, "(%3d, %3d)", mx, my);
@@ -245,24 +252,17 @@ void HariMain(void) {
 					sheet_slide(sht_mouse, mx, my);
 				}
 			}
-			// 定时器中断
-			else if (i == 10) {
-				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
-			}
-			else if (i == 3) {
-				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
-			}
 			// 光标寄存器
 			else if (i <= 1) {
 				if (i == 1) {
-					timer_init(timer3, &fifo, 0);
+					timer_init(timer, &fifo, 0);
 					cursor_c = COL8_000000;
 				}
 				else if (i == 0) {
-					timer_init(timer3, &fifo, 1);
+					timer_init(timer, &fifo, 1);
 					cursor_c = COL8_FFFFFF;
 				}
-				timer_settime(timer3, 50);
+				timer_settime(timer, 50);
 				boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
 				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
 			}
@@ -370,7 +370,7 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
  * 任务b
  * @param sht_back		要显示的图层地址
 */
-void task_b_main(struct SHEET *sht_back){
+void task_b_main(struct SHEET *sht_win_b){
 	// 缓冲区
 	struct FIFO32 fifo;
 	// 缓冲区数据
@@ -381,9 +381,6 @@ void task_b_main(struct SHEET *sht_back){
 	char s[12];
 
 	fifo32_init(&fifo, 128, fifobuf, 0);
-	timer_put = timer_alloc();
-	timer_init(timer_put, &fifo, 1);
-//	timer_settime(timer_put, 1);
 	timer_1 = timer_alloc();
 	timer_init(timer_1, &fifo, 100);
 	timer_settime(timer_1, 100);
@@ -398,14 +395,9 @@ void task_b_main(struct SHEET *sht_back){
 		else {
 			i = fifo32_get(&fifo);
 			io_sti();
-			if (i == 1) {
-				sprintf(s, "%11d", count);
-				putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
-				timer_settime(timer_put, 1);
-			}
-			else if (i == 100) {
+			if (i == 100) {
 				sprintf(s, "%11d", count - count0);
-				putfonts8_asc_sht(sht_back, 0, 128, COL8_FFFFFF, COL8_008484, s, 11);
+				putfonts8_asc_sht(sht_win_b, 24, 28, COL8_FFFFFF, COL8_008484, s, 11);
 				count0 = count;
 				timer_settime(timer_1, 100);
 			}
