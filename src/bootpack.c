@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include "bootpack.h"
 
-void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 void task_b_main(struct SHEET *sht_back);
@@ -117,7 +117,7 @@ void HariMain(void) {
 	// 设置窗口图层大小和透明色
 	sheet_setbuf(sht_win, buf_win, 144, 52, -1);
 	// 将窗口放置到窗口图层之中
-	make_window8(buf_win, 144, 52, "editor");
+	make_window8(buf_win, 144, 52, "editor", 1);
 	// 将文本框放置到窗口图层中
 	make_textbox8(sht_win, 8, 28, 128, 16, COL8_FFFFFF);
 	// 光标位置
@@ -131,7 +131,7 @@ void HariMain(void) {
 		buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
 		sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
 		sprintf(s, "task_b%d", i);
-		make_window8(buf_win_b, 144, 52, s);
+		make_window8(buf_win_b, 144, 52, s, 0);
 		// 任务设置
 		task_b[i] = task_alloc();
 		// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
@@ -276,8 +276,9 @@ void HariMain(void) {
  * @param xsize		窗口的宽度
  * @param ysize		窗口的高度
  * @param title		窗口的标题
+ * @param act		窗口颜色，如果为1则是彩色，如果为0则是黑色
  */
-void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act) {
 	static char closebtn[14][16]= {
 			"OOOOOOOOOOOOOOO@",
 			"OQQQQQQQQQQQQQ$@",
@@ -295,7 +296,15 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
 			"@@@@@@@@@@@@@@@@"
 	};
 	int x, y;
-	char c;
+	char c, tc, tbc;
+	if (act == 1) {
+		tc = COL8_FFFFFF;
+		tbc = COL8_000084;
+	}
+	else {
+		tc = COL8_C6C6C6;
+		tbc = COL8_848484;
+	}
 	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, xsize - 1, 0);
 	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, xsize - 2, 1);
 	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, 0, ysize - 1);
@@ -303,10 +312,10 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title) {
 	boxfill8(buf, xsize, COL8_848484, xsize - 2, 1, xsize - 2, ysize - 2);
 	boxfill8(buf, xsize, COL8_000000, xsize - 1, 0, xsize - 1, ysize - 1);
 	boxfill8(buf, xsize, COL8_C6C6C6, 2, 2, xsize - 3, ysize - 3);
-	boxfill8(buf, xsize, COL8_000084, 3, 3, xsize - 4, 20);
+	boxfill8(buf, xsize, tbc, 3, 3, xsize - 4, 20);
 	boxfill8(buf, xsize, COL8_848484, 1, ysize - 2, xsize - 2, ysize - 2);
 	boxfill8(buf, xsize, COL8_000000, 0, ysize - 1, xsize - 1, ysize - 1);
-	putfonts8_asc(buf, xsize,24, 4, COL8_FFFFFF, title );
+	putfonts8_asc(buf, xsize,24, 4, tc, title );
 	for (y = 0; y < 14; y++) {
 		for (x = 0; x < 16; x++) {
 			c = closebtn[y][x];
