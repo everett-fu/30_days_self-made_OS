@@ -56,8 +56,9 @@ int fifo32_put(struct FIFO32 *fifo, int data) {
 		fifo->next_w = 0;
 	}
 	fifo->free--;
+	// 如果任务处于休眠的状态，将任务唤醒
 	if (fifo->task != 0 && fifo->task->flags != TASK_FLAGS_USING) {
-		task_run(fifo->task);
+		task_run(fifo->task, 0);
 	}
 	return 0;
 }

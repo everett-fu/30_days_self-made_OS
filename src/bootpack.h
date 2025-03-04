@@ -273,6 +273,8 @@ struct TSS32 {
 struct TASK {
 	// 任务的GDT的编号, 任务状态
 	int sel, flags;
+	// 任务运行时间，单位ms
+	int priority;
 	// 任务状态相关的段
 	struct TSS32 tss;
 };
@@ -291,6 +293,6 @@ extern struct TASKCTL *taskctl;
 extern struct TIMER *task_timer;
 struct TASK * task_init(struct MEMMAN *memman);
 struct TASK * task_alloc(void);
-void task_run(struct TASK *task);
+void task_run(struct TASK *task, int priority);
 void task_switch(void);
 void task_sleep(struct TASK *task);

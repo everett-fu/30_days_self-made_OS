@@ -9,7 +9,7 @@
  * - task_init: 初始化任务控制块
  * - task_alloc: 选择一个未使用的任务结构体，并初始化任务结构体
  * - task_run: 将任务添加到tasks的末尾，并将正在运行的任务数加1
- * - task_switch: 切换任务，公平时间片算法
+ * - task_switch: 切换任务，不同时间算法（优先级算法）
  * - task_sleep: 任务休眠
  *
  * Usage:
@@ -42,6 +42,8 @@ struct TASK * task_init(struct MEMMAN *memman) {
 	task = task_alloc();
 	// 将任务设置为活动中
 	task->flags = TASK_FLAGS_USING;
+	// 将任务设置运行2ms
+	task->priority = 2;
 	// 正在运行的任务数量
 	taskctl->running_num = 1;
 	// 当前运行的任务编号
@@ -92,29 +94,40 @@ struct TASK * task_alloc(void) {
 /**
  * 将任务添加到tasks的末尾，并将正在运行的任务数加1
  * @param task			要运行任务的地址
+ * @param priority 		运行的运行时间
  */
-void task_run(struct TASK *task) {
-	task->flags = TASK_FLAGS_USING;
-	taskctl->tasks[taskctl->running_num] = task;
-	taskctl->running_num++;
+void task_run(struct TASK *task, int priority) {
+	// 如果任务的运行时间大于0
+	if (priority > 0) {
+		task->priority = priority;
+	}
+	// 如果任务不是正在运行的任务，将任务设置为正在运行中
+	if (task->flags != TASK_FLAGS_USING) {
+		task->flags = TASK_FLAGS_USING;
+		taskctl->tasks[taskctl->running_num] = task;
+		taskctl->running_num++;
+	}
 	return;
 }
 
 /**
- * 切换任务，公平时间片算法
+ * 切换任务，不同时间算法（优先级算法）
  */
 void task_switch(void) {
-	timer_settime(task_timer, 2);
+	struct TASK *task;
+
+	// 运行下一个任务
+	taskctl->now_task++;
+	// 当任务是最后一个任务，下个任务回到第一个任务
+	if (taskctl->now_task == taskctl->running_num) {
+		taskctl->now_task = 0;
+	}
+	task = taskctl->tasks[taskctl->now_task];
+	timer_settime(task_timer, task->priority);
 	// 如果有多个任务
 	if (taskctl->running_num >= 2) {
-		// 运行下一个任务
-		taskctl->now_task++;
-		// 当任务是最后一个任务，下个任务回到第一个任务
-		if (taskctl->now_task == taskctl->running_num) {
-			taskctl->now_task = 0;
-		}
 		// 跳转到下个任务执行
-		farjmp(0, taskctl->tasks[taskctl->now_task]->sel);
+		farjmp(0, task->sel);
 	}
 	return;
 }
