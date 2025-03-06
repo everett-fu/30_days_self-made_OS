@@ -247,6 +247,10 @@ void timer_settime(struct TIMER *timer, unsigned int timeout);
 // mtask.c
 // 最大任务数量
 #define MAX_TASKS 1000
+// 每个任务列表最大任务数量
+#define MAX_TASKS_LV 100
+// 最多拥有任务列表的数量
+#define MAX_TASKLEVELS 10
 // 定义GDT从几号开始分配TSS
 #define TASK_GDT0 3
 // 关闭任务
@@ -273,19 +277,31 @@ struct TSS32 {
 struct TASK {
 	// 任务的GDT的编号, 任务状态
 	int sel, flags;
-	// 任务运行时间，单位ms
-	int priority;
+	// 当前任务所在的任务队列，任务运行时间，单位ms
+	int level, priority;
 	// 任务状态相关的段
 	struct TSS32 tss;
 };
 
+// 任务队列
+struct TASKLEVEL {
+	// 当前队列正在运行的数量
+	int running_num;
+	// 当前任务运行任务的编号
+	int now_task;
+	// 任务所在的地址
+	struct TASK *tasks[MAX_TASKS_LV];
+};
+
 // 任务控制器
 struct TASKCTL {
-	// 当前运行任务的数量
-	int running_num;
-	// 当前运行任务的编号
-	int now_task;
-	struct TASK *tasks[MAX_TASKS];
+	// 当前活动的任务队列
+	int now_lv;
+	// 下次切换任务是是否需要改变任务队列
+	char lv_change;
+	// 任务队列
+	struct TASKLEVEL level[MAX_TASKLEVELS];
+	// 所有的任务存在的位置
 	struct TASK tasks0[MAX_TASKS];
 };
 
@@ -293,6 +309,10 @@ extern struct TASKCTL *taskctl;
 extern struct TIMER *task_timer;
 struct TASK * task_init(struct MEMMAN *memman);
 struct TASK * task_alloc(void);
-void task_run(struct TASK *task, int priority);
+void task_run(struct TASK *task, int level, int priority);
 void task_switch(void);
 void task_sleep(struct TASK *task);
+struct TASK *task_now(void);
+void task_add(struct TASK *task);
+void task_remove(struct TASK *task);
+void task_switchsub(void);

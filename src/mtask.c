@@ -9,8 +9,12 @@
  * - task_init: 初始化任务控制块
  * - task_alloc: 选择一个未使用的任务结构体，并初始化任务结构体
  * - task_run: 将任务添加到tasks的末尾，并将正在运行的任务数加1
- * - task_switch: 切换任务，不同时间算法（优先级算法）
+ * - task_switch: 切换任务，多重队列算法
  * - task_sleep: 任务休眠
+ * - task_now: 返回当前任务的内存地址
+ * - task_add: 向任务队列中添加一个任务
+ * - task_remove: 从任务列表中删除一个任务
+ * - task_switchsub: 决定任务切换的时候要切换到哪个任务列表
  *
  * Usage:
  */
@@ -38,22 +42,28 @@ struct TASK * task_init(struct MEMMAN *memman) {
 		// 设置任务切换所用的寄存器与段设置
 		set_segmdesc(gdt + TASK_GDT0 + i, 103, (int)&taskctl->tasks0[i].tss, AR_TSS32);
 	}
+	// 初始化每个任务列表的正在运行数与正在运行任务编号
+	for (i = 0; i < MAX_TASKLEVELS; i++) {
+		taskctl->level[i].running_num = 0;
+		taskctl->level[i].now_task = 0;
+	}
 	// 选择一个未使用的任务结构体
 	task = task_alloc();
 	// 将任务设置为活动中
 	task->flags = TASK_FLAGS_USING;
 	// 将任务设置运行2ms
 	task->priority = 2;
-	// 正在运行的任务数量
-	taskctl->running_num = 1;
-	// 当前运行的任务编号
-	taskctl->now_task = 0;
-	taskctl->tasks[0] = task;
+	// 将任务列表设置为列表0
+	task->level = 0;
+	// 将任务添加到任务列表
+	task_add(task);
+	// 切换任务列表
+	task_switchsub();
 	load_tr(task->sel);
 	// 申请一个定时器作为任务定时器
 	task_timer = timer_alloc();
 	// 设置任务切换的时间
-	timer_settime(task_timer, 2);
+	timer_settime(task_timer, task->priority);
 	return task;
 }
 
@@ -94,40 +104,60 @@ struct TASK * task_alloc(void) {
 /**
  * 将任务添加到tasks的末尾，并将正在运行的任务数加1
  * @param task			要运行任务的地址
+ * @param level			将任务添加到任务列表序号
  * @param priority 		运行的运行时间
  */
-void task_run(struct TASK *task, int priority) {
+void task_run(struct TASK *task, int level, int priority) {
+	// 如果任务列表编号小于0，不改变任务列表编号
+	if (level < 0) {
+		level = task->level;
+	}
 	// 如果任务的运行时间大于0
 	if (priority > 0) {
 		task->priority = priority;
 	}
-	// 如果任务不是正在运行的任务，将任务设置为正在运行中
-	if (task->flags != TASK_FLAGS_USING) {
-		task->flags = TASK_FLAGS_USING;
-		taskctl->tasks[taskctl->running_num] = task;
-		taskctl->running_num++;
+	// 如果任务是正在运行的任务，并且要改变任务列表，则移除之前任务列表的任务
+	if (task->flags == TASK_FLAGS_USING && task->level != level) {
+		// 如果移除以后，该任务的flag会变成TASK_FLAGS_ALLOC，下面的if也会执行
+		task_remove(task);
 	}
+	if (task->flags != TASK_FLAGS_USING) {
+		// 修改任务的任务列表编号
+		task->level = level;
+		// 将任务添加到任务列表
+		task_add(task);
+	}
+
+	taskctl->lv_change = 1;
 	return;
 }
 
 /**
- * 切换任务，不同时间算法（优先级算法）
+ * 切换任务，多重队列算法
  */
 void task_switch(void) {
-	struct TASK *task;
-
+	struct TASKLEVEL *t1 = &taskctl->level[taskctl->now_lv];
+	struct TASK *new_task, *now_task = t1->tasks[t1->now_task];
 	// 运行下一个任务
-	taskctl->now_task++;
+	t1->now_task++;
 	// 当任务是最后一个任务，下个任务回到第一个任务
-	if (taskctl->now_task == taskctl->running_num) {
-		taskctl->now_task = 0;
+	if (t1->now_task == t1->running_num) {
+		t1->now_task = 0;
 	}
-	task = taskctl->tasks[taskctl->now_task];
-	timer_settime(task_timer, task->priority);
-	// 如果有多个任务
-	if (taskctl->running_num >= 2) {
+	// 如果需要改变任务队列
+	if (taskctl->lv_change != 0) {
+		// 找到要切换的任务队列
+		task_switchsub();
+		t1 = &taskctl->level[taskctl->now_lv];
+	}
+	// 获取新任务的地址
+	new_task = t1->tasks[t1->now_task];
+	// 设置新任务的运行时间
+	timer_settime(task_timer, new_task->priority);
+	// 如果任务列表只有一个任务，会出现下一个任务还是当前任务，判断下一个任务与当前的任务是否一致
+	if (new_task != now_task) {
 		// 跳转到下个任务执行
-		farjmp(0, task->sel);
+		farjmp(0, new_task->sel);
 	}
 	return;
 }
@@ -137,41 +167,93 @@ void task_switch(void) {
  * @param task			要休眠的任务结构体的地址
  */
 void task_sleep(struct TASK *task) {
-	int i;
-	char ts = 0;
-	// 如果任务处于唤醒状态
+	struct TASK *now_task;
+	// 如果任务处于活动状态
 	if (task->flags == TASK_FLAGS_USING) {
-		// 如果任务是正在执行的任务
-		if (task == taskctl->tasks[taskctl->now_task]) {
-			ts = 1;
-		}
-		// 找到任务在数组中的位置
-		for (i = 0; i < taskctl->running_num; i++) {
-			if (taskctl->tasks[i] == task) {
-				break;
-			}
-		}
-		// 正在使用的任务减1
-		taskctl->running_num--;
-		// 如果要休眠的任务在正在运行的任务的前面
-		if (i < taskctl->now_task) {
-			// 正在运行的任务编号减1
-			taskctl->now_task--;
-		}
-		// 从要休眠的任务开始，将后面的任务向前平移一个位置，即覆盖要休眠的任务
-		for (; i < taskctl->running_num; i++) {
-			taskctl->tasks[i] = taskctl->tasks[i + 1];
-		}
-		// 将该任务置为就绪态
-		task->flags = TASK_FLAGS_ALLOC;
-		// 如果要休眠的任务是正在执行的任务
-		if (ts != 0) {
-			// 万一要休眠的任务为最后一个，经过前面的步骤以后会出现now_task（要休眠的任务编号）>running_num（全部运行的任务数）
-			if (taskctl->now_task >= taskctl->running_num) {
-				taskctl->now_task = 0;
-			}
-			farjmp(0, taskctl->tasks[taskctl->now_task]->sel);
+		// 获取当前正在执行任务的地址
+		now_task = task_now();
+		// 将任务从任务列表移除
+		task_remove(task);
+		// 如果正在执行的任务与要移除的任务是一个任务
+		if (task == now_task) {
+			// 找到下一个要执行的任务
+			task_switchsub();
+			// 获取下一个任务的地址
+			now_task = task_now();
+			// 跳转到下一个任务
+			farjmp(0, now_task->sel);
 		}
 	}
 	return;
 }
+
+/**
+ * 返回当前任务的内存地址
+ * @return				当前运行任务的地址
+ */
+struct TASK *task_now(void) {
+	struct TASKLEVEL *t1 = &taskctl->level[taskctl->now_lv];
+	return t1->tasks[t1->now_task];
+}
+
+/**
+ * 向任务队列中添加一个任务
+ * @param task			需要添加任务的地址
+ */
+void task_add(struct TASK *task) {
+	struct TASKLEVEL *t1 = &taskctl->level[task->level];
+	// 判断是否大于任务列表的最大值
+	if (t1->running_num < MAX_TASKS_LV) {
+		t1->tasks[t1->running_num] = task;
+		t1->running_num++;
+		task->flags = TASK_FLAGS_USING;
+	}
+	return;
+}
+
+/**
+ * 从任务列表中删除一个任务
+ * @param task			需要删除的任务
+ */
+void task_remove(struct TASK *task) {
+	int i;
+	struct TASKLEVEL *t1 = &taskctl->level[task->level];
+
+	// 寻找task所在的位置
+	for (i = 0; i < t1->running_num; i++) {
+		if (t1->tasks[i] == task) {
+			break;
+		}
+	}
+
+	t1->running_num--;
+	// 如果要休眠的任务在正在运行的任务的前面
+	if (i < t1->now_task) {
+		t1->now_task--;
+	}
+	// 万一要休眠的任务为最后一个，经过前面的步骤以后会出现now_task（要休眠的任务编号）>running_num（全部运行的任务数）
+	if (t1->now_task >= t1->running_num) {
+		t1->now_task = 0;
+	}
+	// 从要休眠的任务开始，将后面的任务向前平移一个位置，即覆盖要休眠的任务
+	task->flags = TASK_FLAGS_ALLOC;
+	for (; i < t1->running_num; i++) {
+		t1->tasks[i] = t1->tasks[i + 1];
+	}
+}
+
+/**
+ * 决定任务切换的时候要切换到哪个任务列表
+ */
+void task_switchsub(void) {
+	int i;
+	for (i = 0; i < MAX_TASKLEVELS; i++) {
+		if (taskctl->level[i].running_num > 0) {
+			break;
+		}
+	}
+	taskctl->now_lv = i;
+	taskctl->lv_change = 0;
+	return;
+}
+

@@ -81,6 +81,7 @@ void HariMain(void) {
 	// 初始化任务
 	task_a = task_init(memman);
 	fifo.task = task_a;
+	task_run(task_a, 1, 0);
 
 	// 初始化调色板
 	init_palette();
@@ -144,7 +145,7 @@ void HariMain(void) {
 		task_b[i]->tss.fs = 1 * 8;
 		task_b[i]->tss.gs = 1 * 8;
 		*((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
-		task_run(task_b[i], i + 1);
+		task_run(task_b[i], 2, i + 1);
 	}
 
 	// 背景色填充
@@ -164,7 +165,7 @@ void HariMain(void) {
 	sheet_updown(sht_win_b[1], 1);
 	sheet_updown(sht_win_b[2], 1);
 	// 设置鼠标图层高度
-	sheet_updown(sht_mouse, 2);
+	sheet_updown(sht_mouse, 10);
 
 	// 显示鼠标坐标
 	sprintf(s, "(%3d, %3d)", mx, my);
@@ -385,7 +386,7 @@ void task_b_main(struct SHEET *sht_win_b){
 	// 缓冲区数据
 	int fifobuf[128];
 	// 界面刷新定时器
-	struct TIMER *timer_put, *timer_1;
+	struct TIMER *timer_1;
 	int i, count = 0, count0 = 0;
 	char s[12];
 
