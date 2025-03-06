@@ -138,7 +138,7 @@ int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
 	// 不是第一个
 	if (i > 0) {
 		// 是否可以与前面的合并
-		if (man->free[i - 1].addr + man->free[i].size == addr) {
+		if (man->free[i - 1].addr + man->free[i - 1].size == addr) {
 			man->free[i - 1].size += size;
 			// 不是最后一个
 			if (i < man->frees) {

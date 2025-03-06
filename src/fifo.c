@@ -25,13 +25,15 @@
  * @param size		缓冲区大小
  * @param buf		缓冲区地址
  */
-void fifo32_init(struct FIFO32 *fifo, int size, int *buf) {
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf, struct TASK *task) {
 	fifo->size = size;
 	fifo->buf = buf;
 	fifo->free = size;                // 缓冲区大小
 	fifo->flags = 0;
 	fifo->next_w = 0;                // 下一个写入位置
 	fifo->next_r = 0;                // 下一个读取位置
+	// 有数据写入的时候需要唤醒的任务
+	fifo->task = task;
 	return;
 }
 
@@ -54,6 +56,11 @@ int fifo32_put(struct FIFO32 *fifo, int data) {
 		fifo->next_w = 0;
 	}
 	fifo->free--;
+	// 如果任务处于休眠的状态，将任务唤醒
+	if (fifo->task != 0 && fifo->task->flags != TASK_FLAGS_USING) {
+		// 唤醒的时候不改变任务队列
+		task_run(fifo->task, -1, 0);
+	}
 	return 0;
 }
 

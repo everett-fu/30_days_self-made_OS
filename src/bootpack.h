@@ -50,8 +50,10 @@ struct FIFO32 {
 	int *buf;
 	// 下一个写入位置，下一个读取位置，缓冲区大小，缓冲区剩余大小，缓冲区溢出标志
 	int next_w, next_r, size, free, flags;
+	// 当有输入的时候唤醒以下程序
+	struct TASK *task;
 };
-void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf, struct TASK *task);
 int fifo32_put(struct FIFO32 *fifo, int data);
 int fifo32_get(struct FIFO32 *fifo);
 int fifo32_status(struct FIFO32 *fifo);
@@ -243,7 +245,21 @@ void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);
 
 // mtask.c
-// 任务状态段
+// 最大任务数量
+#define MAX_TASKS 1000
+// 每个任务列表最大任务数量
+#define MAX_TASKS_LV 100
+// 最多拥有任务列表的数量
+#define MAX_TASKLEVELS 10
+// 定义GDT从几号开始分配TSS
+#define TASK_GDT0 3
+// 关闭任务
+#define TASK_FLAGS_CLOSE 0
+// 启用任务
+#define TASK_FLAGS_ALLOC 1
+// 任务使用中
+#define TASK_FLAGS_USING 2
+// 任务状态相关的段
 // 用于保存所有的寄存器信息与任务设置相关信息
 // 用于多任务的切换
 struct TSS32 {
@@ -256,6 +272,47 @@ struct TSS32 {
 	// 任务设置相关信息
 	int ldtr, iomap;
 };
-extern struct TIMER *mt_timer;
-void mt_init(void);
-void mt_taskswitch(void);
+
+// 单个任务数据
+struct TASK {
+	// 任务的GDT的编号, 任务状态
+	int sel, flags;
+	// 当前任务所在的任务队列，任务运行时间，单位ms
+	int level, priority;
+	// 任务状态相关的段
+	struct TSS32 tss;
+};
+
+// 任务队列
+struct TASKLEVEL {
+	// 当前队列正在运行的数量
+	int running_num;
+	// 当前任务运行任务的编号
+	int now_task;
+	// 任务所在的地址
+	struct TASK *tasks[MAX_TASKS_LV];
+};
+
+// 任务控制器
+struct TASKCTL {
+	// 当前活动的任务队列
+	int now_lv;
+	// 下次切换任务是是否需要改变任务队列
+	char lv_change;
+	// 任务队列
+	struct TASKLEVEL level[MAX_TASKLEVELS];
+	// 所有的任务存在的位置
+	struct TASK tasks0[MAX_TASKS];
+};
+
+extern struct TASKCTL *taskctl;
+extern struct TIMER *task_timer;
+struct TASK * task_init(struct MEMMAN *memman);
+struct TASK * task_alloc(void);
+void task_run(struct TASK *task, int level, int priority);
+void task_switch(void);
+void task_sleep(struct TASK *task);
+struct TASK *task_now(void);
+void task_add(struct TASK *task);
+void task_remove(struct TASK *task);
+void task_switchsub(void);
