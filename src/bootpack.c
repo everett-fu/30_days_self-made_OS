@@ -10,6 +10,8 @@
  * - HariMain: 主函数
  * - make_window8: 创建窗口
  * - putfonts8_asc_sht: 在图层上显示字符串
+ * - make_textbox8: 创建文本框
+ * - console_task: 创建终端窗口
  *
  * Usage:
  */
@@ -19,7 +21,7 @@
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
-void task_b_main(struct SHEET *sht_back);
+void console_task(struct SHEET *sheet);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
@@ -34,13 +36,13 @@ void HariMain(void) {
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
-	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_win_b[3];
-	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_win_b;
+	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons;
+	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_cons;
 
 	int cursor_x, cursor_c;
 
 	// 创建任务a,b
-	struct TASK *task_a, *task_b[3];
+	struct TASK *task_a, *task_cons;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -126,27 +128,25 @@ void HariMain(void) {
 	// 光标颜色
 	cursor_c = COL8_FFFFFF;
 
-	// 窗口b图层
-	for (i = 0; i < 3; i++) {
-		sht_win_b[i] = sheet_alloc(shtctl);
-		buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
-		sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
-		sprintf(s, "task_b%d", i);
-		make_window8(buf_win_b, 144, 52, s, 0);
-		// 任务设置
-		task_b[i] = task_alloc();
-		// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
-		task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
-		task_b[i]->tss.eip = (int) &task_b_main;
-		task_b[i]->tss.es = 1 * 8;
-		task_b[i]->tss.cs = 2 * 8;
-		task_b[i]->tss.ss = 1 * 8;
-		task_b[i]->tss.ds = 1 * 8;
-		task_b[i]->tss.fs = 1 * 8;
-		task_b[i]->tss.gs = 1 * 8;
-		*((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
-//		task_run(task_b[i], 2, i + 1);
-	}
+	// 终端图层
+	sht_cons = sheet_alloc(shtctl);
+	buf_cons = (unsigned char *)memman_alloc_4k(memman, 256 * 165);
+	sheet_setbuf(sht_cons, buf_cons, 256, 165, -1);
+	make_window8(buf_cons, 256, 165, "console", 0);
+	make_textbox8(buf_cons, 8, 28, 240, 128, COL8_000000);
+	// 任务设置
+	task_cons = task_alloc();
+	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
+	task_cons->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+	task_cons->tss.eip = (int) &console_task;
+	task_cons->tss.es = 1 * 8;
+	task_cons->tss.cs = 2 * 8;
+	task_cons->tss.ss = 1 * 8;
+	task_cons->tss.ds = 1 * 8;
+	task_cons->tss.fs = 1 * 8;
+	task_cons->tss.gs = 1 * 8;
+	*((int *)(task_cons->tss.esp + 4)) = (int)sht_cons;
+	task_run(task_cons, 2, 2);
 
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
@@ -154,16 +154,12 @@ void HariMain(void) {
 	sheet_slide(sht_mouse, mx, my);
 	// 显示窗口
 	sheet_slide(sht_win, 8, 56);
-	sheet_slide(sht_win_b[0], 168, 56);
-	sheet_slide(sht_win_b[1], 8, 116);
-	sheet_slide(sht_win_b[2], 168, 116);
+	sheet_slide(sht_cons, 32, 4);
 	// 设置背景图层高度
 	sheet_updown(sht_back, 0);
 	// 设置窗口图层高度
 	sheet_updown(sht_win, 1);
-	sheet_updown(sht_win_b[0], 1);
-	sheet_updown(sht_win_b[1], 1);
-	sheet_updown(sht_win_b[2], 1);
+	sheet_updown(sht_cons, 1);
 	// 设置鼠标图层高度
 	sheet_updown(sht_mouse, 10);
 
@@ -380,36 +376,45 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
  * 任务b
  * @param sht_back		要显示的图层地址
 */
-void task_b_main(struct SHEET *sht_win_b){
+void console_task(struct SHEET *sheet){
 	// 缓冲区
 	struct FIFO32 fifo;
 	// 缓冲区数据
 	int fifobuf[128];
 	// 界面刷新定时器
-	struct TIMER *timer_1;
-	int i, count = 0, count0 = 0;
-	char s[12];
+	struct TIMER *timer;
+	// 获取当前任务的地址
+	struct TASK *task = task_now();
+	// 临时变量，字符位置，字符颜色
+	int i, cursor_x = 8, cursor_c = COL8_000000;
 
-	fifo32_init(&fifo, 128, fifobuf, 0);
-	timer_1 = timer_alloc();
-	timer_init(timer_1, &fifo, 100);
-	timer_settime(timer_1, 100);
+	fifo32_init(&fifo, 128, fifobuf, task);
+	timer = timer_alloc();
+	timer_init(timer, &fifo, 1);
+	timer_settime(timer, 50);
 
 
 	for (;;) {
-		count++;
 		io_cli();
 		if (fifo32_status(&fifo) == 0) {
+			task_sleep(task);
 			io_sti();
 		}
 		else {
 			i = fifo32_get(&fifo);
 			io_sti();
-			if (i == 100) {
-				sprintf(s, "%11d", count - count0);
-				putfonts8_asc_sht(sht_win_b, 24, 28, COL8_FFFFFF, COL8_008484, s, 11);
-				count0 = count;
-				timer_settime(timer_1, 100);
+			if (i <= 1) {
+				if (i == 1) {
+					timer_init(timer, &fifo, 0);
+					cursor_c = COL8_FFFFFF;
+				}
+				else {
+					timer_init(timer, &fifo, 1);
+					cursor_c = COL8_000000;
+				}
+				timer_settime(timer, 50);
+				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
 			}
 		}
 	}
