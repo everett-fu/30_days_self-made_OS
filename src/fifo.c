@@ -24,6 +24,7 @@
  * @param fifo		FIFO缓冲区
  * @param size		缓冲区大小
  * @param buf		缓冲区地址
+ * @param task		有数据写入时需要唤醒的任务
  */
 void fifo32_init(struct FIFO32 *fifo, int size, int *buf, struct TASK *task) {
 	fifo->size = size;
