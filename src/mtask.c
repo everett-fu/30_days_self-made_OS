@@ -15,6 +15,7 @@
  * - task_add: 向任务队列中添加一个任务
  * - task_remove: 从任务列表中删除一个任务
  * - task_switchsub: 决定任务切换的时候要切换到哪个任务列表
+ * - task_idle: 系统休眠函数
  *
  * Usage:
  */
@@ -32,7 +33,7 @@ struct TIMER *task_timer;
  */
 struct TASK * task_init(struct MEMMAN *memman) {
 	int i;
-	struct TASK *task;
+	struct TASK *task, *idle;
 	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
 	taskctl = (struct TASKCTL *)memman_alloc_4k(memman, sizeof(struct TASKCTL));
 	// 初始化所有的任务
@@ -64,6 +65,19 @@ struct TASK * task_init(struct MEMMAN *memman) {
 	task_timer = timer_alloc();
 	// 设置任务切换的时间
 	timer_settime(task_timer, task->priority);
+
+	// 设置一个休眠任务，当没有其他任务的时候调用这个任务
+	idle = task_alloc();
+	idle->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024;
+	idle->tss.eip = (int)&task_idle;
+	idle->tss.es = 1 * 8;
+	idle->tss.cs = 2 * 8;
+	idle->tss.ss = 1 * 8;
+	idle->tss.ds = 1 * 8;
+	idle->tss.fs = 1 * 8;
+	idle->tss.gs = 1 * 8;
+	task_run(idle, MAX_TASKLEVELS - 1, 1);
+
 	return task;
 }
 
@@ -257,3 +271,11 @@ void task_switchsub(void) {
 	return;
 }
 
+/**
+ * 系统休眠函数
+ */
+void task_idle(void) {
+	for (;;) {
+		io_hlt();
+	}
+}
