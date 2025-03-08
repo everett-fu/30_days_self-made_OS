@@ -50,6 +50,7 @@ void HariMain(void) {
 	// 标志位，用来判断shift是否按下
 	int key_shift = 0;
 	// 键盘锁定键状态
+	// 第一个比特为ScrollLock，第二个比特为NumLock，第三个比特为CapsLock
 	int key_leds = (binfo->leds >> 4) & 7;
 
 	// 初始化GDT,IDT
@@ -210,6 +211,8 @@ void HariMain(void) {
 						s[0] = keytable1[i - 256];
 					}
 					if (s[0] >= 'A' && s[0] <= 'Z') {
+						// 如果大写锁定没有开启，并且没有按下shift，使用小写
+						// 或者大写锁定开启了，并且按下了shift，使用小写
 						if (((key_leds & 4) == 0 && key_shift == 0) || ((key_leds & 4) != 0 && key_shift != 0)) {
 							s[0] += 0x20;
 						}
@@ -277,6 +280,20 @@ void HariMain(void) {
 					// 右Shift OFF
 					else if (i == 256 + 0xb6) {
 						key_shift &= ~2;
+					}
+					// 大写锁定键
+					else if (i == 256 + 0x3a) {
+						// 大写锁定没开启
+						if ((key_leds & 4) == 0) {
+							//开启大写锁定
+
+							key_leds |= 4;
+						}
+						else {
+							// 关闭大写锁定
+//							key_leds |= 4;
+							key_leds &= 3;
+						}
 					}
 				}
 			}
