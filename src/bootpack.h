@@ -139,8 +139,11 @@ void inthandler27(int *esp);
 void inthandler21(int *esp);
 void wait_KBC_sendready(void);
 void init_keyboard(struct FIFO32 *fifo, int data0);
+// 键盘设备
 #define PORT_KEYDAT 0x0060
+// 键盘控制电路
 #define PORT_KEYCMD 0x0064
+#define KEYCMD_LED 0xed
 // 键盘字符
 static char keytable0[0x80] = {
 	0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 0, 0,

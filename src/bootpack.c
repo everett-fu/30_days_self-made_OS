@@ -26,9 +26,10 @@ void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	struct FIFO32 fifo;
+	// 输入缓冲区，向键盘输出的缓冲区
+	struct FIFO32 fifo, keycmd;
 	char s[40];
-	int fifobuf[128];
+	int fifobuf[128], keycmd_buf[32];
 
 	struct TIMER *timer;
 	int mx, my, i;
@@ -52,6 +53,8 @@ void HariMain(void) {
 	// 键盘锁定键状态
 	// 第一个比特为ScrollLock，第二个比特为NumLock，第三个比特为CapsLock
 	int key_leds = (binfo->leds >> 4) & 7;
+	// 键盘控制器状态，当等于-1的时候代表可以发送，不等于-1的时候，键盘正在等待发送
+	int keycmd_wait = -1;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -67,6 +70,8 @@ void HariMain(void) {
 
 	// 初始化FIFO缓冲区
 	fifo32_init(&fifo, 128, fifobuf, 0);
+	// 向键盘输出的缓冲区
+	fifo32_init(&keycmd, 32, keycmd_buf, 0);
 
 	// 申请定时器，并初始化与设置定时器
 	timer = timer_alloc();
@@ -179,14 +184,22 @@ void HariMain(void) {
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
 
+	// 为避免与键盘当前状态相冲突，先发送进行一次设置
+	fifo32_put(&keycmd, KEYCMD_LED);
+	fifo32_put(&keycmd, key_leds);
+
 	// 系统主循环
 	for (;;) {
-		//sprintf(s, "%010d", timerctl.count);
-		//putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
-
+		// 判断键盘输出缓冲是否有数据，有的话发送数据
+		if (fifo32_status(&keycmd) > 0 && keycmd_wait < 0) {
+			keycmd_wait = fifo32_get(&keycmd);
+			// 等待键盘电路准备完备
+			wait_KBC_sendready();
+			io_out8(PORT_KEYDAT, keycmd_wait);
+		}
 		// 屏蔽中断
 		io_cli();
-		// 判断是否有键盘输入，或者鼠标输入，或者定时器超时
+		// 判断输入缓冲区是否有数据
 		// 如果输入缓冲中没有任何的数据，则进入休眠状态
 		if (fifo32_status(&fifo) == 0) {
 			// 如果没有中断，自己休眠自己
@@ -283,17 +296,30 @@ void HariMain(void) {
 					}
 					// 大写锁定键
 					else if (i == 256 + 0x3a) {
-						// 大写锁定没开启
-						if ((key_leds & 4) == 0) {
-							//开启大写锁定
-
-							key_leds |= 4;
-						}
-						else {
-							// 关闭大写锁定
-//							key_leds |= 4;
-							key_leds &= 3;
-						}
+						// 切换锁定键
+						key_leds ^= 4;
+						fifo32_put(&keycmd, KEYCMD_LED);
+						fifo32_put(&keycmd, key_leds);
+					}
+					// 数字锁定键
+					else if (i == 256 + 0x45) {
+						key_leds ^= 2;
+						fifo32_put(&keycmd, KEYCMD_LED);
+						fifo32_put(&keycmd, key_leds);
+					}
+					// ScrollLock锁定键
+					else if (i == 256 + 0x46) {
+						key_leds ^= 1;
+						fifo32_put(&keycmd, KEYCMD_LED);
+						fifo32_put(&keycmd, key_leds);
+					}
+					// 发送成功
+					else if (i == 256 + 0xfa) {
+						keycmd_wait = -1;
+					}
+					else if (i == 256 + 0xfe) {
+						wait_KBC_sendready();
+						io_out8(PORT_KEYDAT, keycmd_wait);
 					}
 				}
 			}
