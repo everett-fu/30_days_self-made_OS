@@ -279,6 +279,8 @@ struct TASK {
 	int sel, flags;
 	// 当前任务所在的任务队列，任务运行时间，单位ms
 	int level, priority;
+	// 任务缓冲区
+	struct FIFO32 fifo;
 	// 任务状态相关的段
 	struct TSS32 tss;
 };

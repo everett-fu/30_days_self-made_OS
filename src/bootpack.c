@@ -137,8 +137,7 @@ void HariMain(void) {
 	buf_cons = (unsigned char *)memman_alloc_4k(memman, 256 * 165);
 	sheet_setbuf(sht_cons, buf_cons, 256, 165, -1);
 	make_window8(buf_cons, 256, 165, "console", 0);
-	make_textbox8(buf_cons, 8, 28, 240, 128, COL8_000000);
-	// 任务设置
+	make_textbox8(sht_cons, 8, 28, 240, 128, COL8_000000);
 	task_cons = task_alloc();
 	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
 	task_cons->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
@@ -197,20 +196,41 @@ void HariMain(void) {
 			if (i >=256 && i <= 511) {
 				sprintf(s, "%02x", i - 256);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
-				if (i < 256 + 0x59) {
-					if (keytable[i - 256] != 0 && cursor_x < 144) {
-						s[0] = keytable[i -256];
-						s[1] = 0;
-						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
-						cursor_x += 8;
+				// 一般字符
+				if (i < 256 + 0x59 && keytable[i - 256] != 0) {
+					// 给任务a的数据
+					if (key_to == 0) {
+						if (cursor_x < 128) {
+							s[0] = keytable[i -256];
+							s[1] = 0;
+							putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
+							cursor_x += 8;
+						}
 					}
+					// 给任务b的数据
+					else {
+						fifo32_put(&task_cons->fifo, i);
+					}
+				}
+				// 其他字符
+				else {
 					// 退格键
-					else if (i == 256 + 0x0e && cursor_x > 8) {
-						// 把光标的位置变成背景颜色，再改上一个字符的颜色
-						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
-						cursor_x -=8;
-						boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-						sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+					if (i == 256 + 0x0e) {
+						// 任务a
+						if (key_to == 0) {
+							if (cursor_x > 8) {
+								// 把光标的位置变成背景颜色，再改上一个字符的颜色
+								putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
+								cursor_x -=8;
+								boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+								sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+							}
+
+						}
+						// 任务b
+						else {
+							fifo32_put(&task_cons->fifo, i);
+						}
 					}
 					// TAB键
 					else if (i == 256 + 0x0f) {
@@ -417,8 +437,6 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
  * @param sht_back		要显示的图层地址
 */
 void console_task(struct SHEET *sheet){
-	// 缓冲区
-	struct FIFO32 fifo;
 	// 缓冲区数据
 	int fifobuf[128];
 	// 界面刷新定时器
@@ -426,35 +444,63 @@ void console_task(struct SHEET *sheet){
 	// 获取当前任务的地址
 	struct TASK *task = task_now();
 	// 临时变量，字符位置，字符颜色
-	int i, cursor_x = 8, cursor_c = COL8_000000;
+	int i, cursor_x = 16, cursor_c = COL8_000000;
+	// 临时变量，用于存储字符
+	char s[2];
 
-	fifo32_init(&fifo, 128, fifobuf, task);
+	fifo32_init(&task->fifo, 128, fifobuf, task);
 	timer = timer_alloc();
-	timer_init(timer, &fifo, 1);
+	timer_init(timer, &task->fifo, 1);
 	timer_settime(timer, 50);
 
+	putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, ">", 1);
 
 	for (;;) {
 		io_cli();
-		if (fifo32_status(&fifo) == 0) {
+		if (fifo32_status(&task->fifo) == 0) {
 			task_sleep(task);
 			io_sti();
 		}
 		else {
-			i = fifo32_get(&fifo);
+			i = fifo32_get(&task->fifo);
 			io_sti();
 			if (i <= 1) {
 				if (i == 1) {
-					timer_init(timer, &fifo, 0);
+					timer_init(timer, &task->fifo, 0);
 					cursor_c = COL8_FFFFFF;
 				}
 				else {
-					timer_init(timer, &fifo, 1);
+					timer_init(timer, &task->fifo, 1);
 					cursor_c = COL8_000000;
 				}
 				timer_settime(timer, 50);
 				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
 				sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+			}
+			// 如果有键盘输入，则显示键盘输入
+			if (i >=256 && i <= 511) {
+				// 一般字符
+				if (i < 256 + 0x59 && keytable[i - 256] != 0) {
+					if ( cursor_x < 240) {
+						s[0] = keytable[i -256];
+						s[1] = 0;
+						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, s, 1);
+						cursor_x += 8;
+					}
+				}
+				// 其他字符
+				else {
+					// 退格键
+					if (i == 256 + 0x0e) {
+						if (cursor_x > 16) {
+							// 把光标的位置变成背景颜色，再改上一个字符的颜色
+							putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
+							cursor_x -=8;
+							boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+							sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+						}
+					}
+				}
 			}
 		}
 	}
