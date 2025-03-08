@@ -49,6 +49,8 @@ void HariMain(void) {
 	int key_to = 0;
 	// 标志位，用来判断shift是否按下
 	int key_shift = 0;
+	// 键盘锁定键状态
+	int key_leds = (binfo->leds >> 4) & 7;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -207,6 +209,11 @@ void HariMain(void) {
 					else {
 						s[0] = keytable1[i - 256];
 					}
+					if (s[0] >= 'A' && s[0] <= 'Z') {
+						if (((key_leds & 4) == 0 && key_shift == 0) || ((key_leds & 4) != 0 && key_shift != 0)) {
+							s[0] += 0x20;
+						}
+					}
 					// 给任务a的数据
 					if (key_to == 0) {
 						if (cursor_x < 128) {
@@ -261,7 +268,7 @@ void HariMain(void) {
 					}
 					// 左Shift OFF
 					else if (i == 256 + 0xaa) {
-						key_shift &= -1;
+						key_shift &= ~1;
 					}
 					// 右Shift ON
 					else if (i == 256 + 0x36) {
@@ -269,7 +276,7 @@ void HariMain(void) {
 					}
 					// 右Shift OFF
 					else if (i == 256 + 0xb6) {
-						key_shift &= -2;
+						key_shift &= ~2;
 					}
 				}
 			}
