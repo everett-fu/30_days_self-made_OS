@@ -47,6 +47,8 @@ void HariMain(void) {
 
 	// 标志位，用来判断是否按下tab，用来切换任务窗口
 	int key_to = 0;
+	// 标志位，用来判断shift是否按下
+	int key_shift = 0;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -197,11 +199,17 @@ void HariMain(void) {
 				sprintf(s, "%02x", i - 256);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
 				// 一般字符
-				if (i < 256 + 0x59 && keytable[i - 256] != 0) {
+				if (i < 256 + 0x80 && keytable0[i - 256] != 0) {
+					// shift没有被按下
+					if (key_shift == 0) {
+						s[0] = keytable0[i - 256];
+					}
+					else {
+						s[0] = keytable1[i - 256];
+					}
 					// 给任务a的数据
 					if (key_to == 0) {
 						if (cursor_x < 128) {
-							s[0] = keytable[i -256];
 							s[1] = 0;
 							putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
 							cursor_x += 8;
@@ -209,7 +217,7 @@ void HariMain(void) {
 					}
 					// 给任务b的数据
 					else {
-						fifo32_put(&task_cons->fifo, i);
+						fifo32_put(&task_cons->fifo, s[0] + 256);
 					}
 				}
 				// 其他字符
@@ -229,7 +237,7 @@ void HariMain(void) {
 						}
 						// 任务b
 						else {
-							fifo32_put(&task_cons->fifo, i);
+							fifo32_put(&task_cons->fifo, 8 + 256);
 						}
 					}
 					// TAB键
@@ -246,6 +254,22 @@ void HariMain(void) {
 						}
 						sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
 						sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
+					}
+					// 左Shift ON
+					else if (i == 256 + 0x2a) {
+						key_shift |= 1;
+					}
+					// 左Shift OFF
+					else if (i == 256 + 0xaa) {
+						key_shift &= -1;
+					}
+					// 右Shift ON
+					else if (i == 256 + 0x36) {
+						key_shift |= 2;
+					}
+					// 右Shift OFF
+					else if (i == 256 + 0xb6) {
+						key_shift &= -2;
 					}
 				}
 			}
@@ -479,26 +503,23 @@ void console_task(struct SHEET *sheet){
 			}
 			// 如果有键盘输入，则显示键盘输入
 			if (i >=256 && i <= 511) {
+				// 退格符
+				if (i == 8 + 256) {
+					if (cursor_x > 16) {
+						// 把光标的位置变成背景颜色，再改上一个字符的颜色
+						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
+						cursor_x -=8;
+						boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+						sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+					}
+				}
 				// 一般字符
-				if (i < 256 + 0x59 && keytable[i - 256] != 0) {
+				else {
 					if ( cursor_x < 240) {
-						s[0] = keytable[i -256];
+						s[0] = i - 256;
 						s[1] = 0;
 						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, s, 1);
 						cursor_x += 8;
-					}
-				}
-				// 其他字符
-				else {
-					// 退格键
-					if (i == 256 + 0x0e) {
-						if (cursor_x > 16) {
-							// 把光标的位置变成背景颜色，再改上一个字符的颜色
-							putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
-							cursor_x -=8;
-							boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-							sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
-						}
 					}
 				}
 			}
