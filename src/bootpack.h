@@ -139,17 +139,34 @@ void inthandler27(int *esp);
 void inthandler21(int *esp);
 void wait_KBC_sendready(void);
 void init_keyboard(struct FIFO32 *fifo, int data0);
+// 键盘设备
 #define PORT_KEYDAT 0x0060
+// 键盘控制电路
 #define PORT_KEYCMD 0x0064
+#define KEYCMD_LED 0xed
 // 键盘字符
-static char keytable[0x59] = {
+static char keytable0[0x80] = {
 	0, 0, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 0, 0,
 	'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '[', ']', 0, 0, 'A', 'S',
-	'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', '\'', '`', 0, '|', 'Z', 'X', 'C', 'V',
+	'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', '\'', '`', 0, '\\', 'Z', 'X', 'C', 'V',
 	'B', 'N', 'M', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1',
-	'2', '3', '0', '.', 0, 0, 0, 0, 0
+	'2', '3', '0', '.', 0, 0, 0, 0, 0,0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0x5c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x5c, 0, 0
 };
+static char keytable1[0x80] = {
+	0, 0, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', 0, 0,
+	'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', 0, 0, 'A', 'S',
+	'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', 0, '|', 'Z', 'X', 'C', 'V',
+	'B', 'N', 'M', '<', '>', '?', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, '7', '8', '9', '-', '4', '5', '6', '+', '1',
+	'2', '3', '0', '.', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, '_', 0, 0, 0, 0, 0, 0, 0, 0, 0, '|', 0, 0
+};
+
+
 
 // mouse.c
 struct MOUSE_DEC {
@@ -279,6 +296,8 @@ struct TASK {
 	int sel, flags;
 	// 当前任务所在的任务队列，任务运行时间，单位ms
 	int level, priority;
+	// 任务缓冲区
+	struct FIFO32 fifo;
 	// 任务状态相关的段
 	struct TSS32 tss;
 };
@@ -316,3 +335,4 @@ struct TASK *task_now(void);
 void task_add(struct TASK *task);
 void task_remove(struct TASK *task);
 void task_switchsub(void);
+void task_idle(void);

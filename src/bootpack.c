@@ -10,6 +10,8 @@
  * - HariMain: 主函数
  * - make_window8: 创建窗口
  * - putfonts8_asc_sht: 在图层上显示字符串
+ * - make_textbox8: 创建文本框
+ * - console_task: 创建终端窗口
  *
  * Usage:
  */
@@ -19,13 +21,15 @@
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
-void task_b_main(struct SHEET *sht_back);
+void console_task(struct SHEET *sheet);
+void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
 
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
-	struct FIFO32 fifo;
+	// 输入缓冲区，向键盘输出的缓冲区
+	struct FIFO32 fifo, keycmd;
 	char s[40];
-	int fifobuf[128];
+	int fifobuf[128], keycmd_buf[32];
 
 	struct TIMER *timer;
 	int mx, my, i;
@@ -34,13 +38,23 @@ void HariMain(void) {
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
 	struct SHTCTL *shtctl;
-	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_win_b[3];
-	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_win_b;
+	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons;
+	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_cons;
 
 	int cursor_x, cursor_c;
 
 	// 创建任务a,b
-	struct TASK *task_a, *task_b[3];
+	struct TASK *task_a, *task_cons;
+
+	// 标志位，用来判断是否按下tab，用来切换任务窗口
+	int key_to = 0;
+	// 标志位，用来判断shift是否按下
+	int key_shift = 0;
+	// 键盘锁定键状态
+	// 第一个比特为ScrollLock，第二个比特为NumLock，第三个比特为CapsLock
+	int key_leds = (binfo->leds >> 4) & 7;
+	// 键盘控制器状态，当等于-1的时候代表可以发送，不等于-1的时候，键盘正在等待发送
+	int keycmd_wait = -1;
 
 	// 初始化GDT,IDT
 	init_gdtidt();
@@ -56,6 +70,8 @@ void HariMain(void) {
 
 	// 初始化FIFO缓冲区
 	fifo32_init(&fifo, 128, fifobuf, 0);
+	// 向键盘输出的缓冲区
+	fifo32_init(&keycmd, 32, keycmd_buf, 0);
 
 	// 申请定时器，并初始化与设置定时器
 	timer = timer_alloc();
@@ -126,27 +142,24 @@ void HariMain(void) {
 	// 光标颜色
 	cursor_c = COL8_FFFFFF;
 
-	// 窗口b图层
-	for (i = 0; i < 3; i++) {
-		sht_win_b[i] = sheet_alloc(shtctl);
-		buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
-		sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
-		sprintf(s, "task_b%d", i);
-		make_window8(buf_win_b, 144, 52, s, 0);
-		// 任务设置
-		task_b[i] = task_alloc();
-		// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
-		task_b[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
-		task_b[i]->tss.eip = (int) &task_b_main;
-		task_b[i]->tss.es = 1 * 8;
-		task_b[i]->tss.cs = 2 * 8;
-		task_b[i]->tss.ss = 1 * 8;
-		task_b[i]->tss.ds = 1 * 8;
-		task_b[i]->tss.fs = 1 * 8;
-		task_b[i]->tss.gs = 1 * 8;
-		*((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
-		task_run(task_b[i], 2, i + 1);
-	}
+	// 终端图层
+	sht_cons = sheet_alloc(shtctl);
+	buf_cons = (unsigned char *)memman_alloc_4k(memman, 256 * 165);
+	sheet_setbuf(sht_cons, buf_cons, 256, 165, -1);
+	make_window8(buf_cons, 256, 165, "console", 0);
+	make_textbox8(sht_cons, 8, 28, 240, 128, COL8_000000);
+	task_cons = task_alloc();
+	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
+	task_cons->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+	task_cons->tss.eip = (int) &console_task;
+	task_cons->tss.es = 1 * 8;
+	task_cons->tss.cs = 2 * 8;
+	task_cons->tss.ss = 1 * 8;
+	task_cons->tss.ds = 1 * 8;
+	task_cons->tss.fs = 1 * 8;
+	task_cons->tss.gs = 1 * 8;
+	*((int *)(task_cons->tss.esp + 4)) = (int)sht_cons;
+	task_run(task_cons, 2, 2);
 
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
@@ -154,16 +167,12 @@ void HariMain(void) {
 	sheet_slide(sht_mouse, mx, my);
 	// 显示窗口
 	sheet_slide(sht_win, 8, 56);
-	sheet_slide(sht_win_b[0], 168, 56);
-	sheet_slide(sht_win_b[1], 8, 116);
-	sheet_slide(sht_win_b[2], 168, 116);
+	sheet_slide(sht_cons, 32, 4);
 	// 设置背景图层高度
 	sheet_updown(sht_back, 0);
 	// 设置窗口图层高度
 	sheet_updown(sht_win, 1);
-	sheet_updown(sht_win_b[0], 1);
-	sheet_updown(sht_win_b[1], 1);
-	sheet_updown(sht_win_b[2], 1);
+	sheet_updown(sht_cons, 1);
 	// 设置鼠标图层高度
 	sheet_updown(sht_mouse, 10);
 
@@ -175,14 +184,22 @@ void HariMain(void) {
 	sprintf(s, "memory %dMB free : %dKB", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
 
+	// 为避免与键盘当前状态相冲突，先发送进行一次设置
+	fifo32_put(&keycmd, KEYCMD_LED);
+	fifo32_put(&keycmd, key_leds);
+
 	// 系统主循环
 	for (;;) {
-		//sprintf(s, "%010d", timerctl.count);
-		//putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
-
+		// 判断键盘输出缓冲是否有数据，有的话发送数据
+		if (fifo32_status(&keycmd) > 0 && keycmd_wait < 0) {
+			keycmd_wait = fifo32_get(&keycmd);
+			// 等待键盘电路准备完备
+			wait_KBC_sendready();
+			io_out8(PORT_KEYDAT, keycmd_wait);
+		}
 		// 屏蔽中断
 		io_cli();
-		// 判断是否有键盘输入，或者鼠标输入，或者定时器超时
+		// 判断输入缓冲区是否有数据
 		// 如果输入缓冲中没有任何的数据，则进入休眠状态
 		if (fifo32_status(&fifo) == 0) {
 			// 如果没有中断，自己休眠自己
@@ -197,20 +214,112 @@ void HariMain(void) {
 			if (i >=256 && i <= 511) {
 				sprintf(s, "%02x", i - 256);
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
-				if (i < 256 + 0x59) {
-					if (keytable[i - 256] != 0 && cursor_x < 144) {
-						s[0] = keytable[i -256];
-						s[1] = 0;
-						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
-						cursor_x += 8;
+				// 一般字符
+				if (i < 256 + 0x80 && keytable0[i - 256] != 0) {
+					// shift没有被按下
+					if (key_shift == 0) {
+						s[0] = keytable0[i - 256];
 					}
+					else {
+						s[0] = keytable1[i - 256];
+					}
+					if (s[0] >= 'A' && s[0] <= 'Z') {
+						// 如果大写锁定没有开启，并且没有按下shift，使用小写
+						// 或者大写锁定开启了，并且按下了shift，使用小写
+						if (((key_leds & 4) == 0 && key_shift == 0) || ((key_leds & 4) != 0 && key_shift != 0)) {
+							s[0] += 0x20;
+						}
+					}
+					// 给任务a的数据
+					if (key_to == 0) {
+						if (cursor_x < 128) {
+							s[1] = 0;
+							putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
+							cursor_x += 8;
+						}
+					}
+					// 给任务b的数据
+					else {
+						fifo32_put(&task_cons->fifo, s[0] + 256);
+					}
+				}
+				// 其他字符
+				else {
 					// 退格键
-					else if (i == 256 + 0x0e && cursor_x > 8) {
-						// 把光标的位置变成背景颜色，再改上一个字符的颜色
-						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
-						cursor_x -=8;
-						boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-						sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+					if (i == 256 + 0x0e) {
+						// 任务a
+						if (key_to == 0) {
+							if (cursor_x > 8) {
+								// 把光标的位置变成背景颜色，再改上一个字符的颜色
+								putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
+								cursor_x -=8;
+								boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+								sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+							}
+
+						}
+						// 任务b
+						else {
+							fifo32_put(&task_cons->fifo, 8 + 256);
+						}
+					}
+					// TAB键
+					else if (i == 256 + 0x0f) {
+						if (key_to == 0) {
+							key_to = 1;
+							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 0);
+							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 1);
+						}
+						else {
+							key_to = 0;
+							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 1);
+							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 0);
+						}
+						sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
+						sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
+					}
+					// 左Shift ON
+					else if (i == 256 + 0x2a) {
+						key_shift |= 1;
+					}
+					// 左Shift OFF
+					else if (i == 256 + 0xaa) {
+						key_shift &= ~1;
+					}
+					// 右Shift ON
+					else if (i == 256 + 0x36) {
+						key_shift |= 2;
+					}
+					// 右Shift OFF
+					else if (i == 256 + 0xb6) {
+						key_shift &= ~2;
+					}
+					// 大写锁定键
+					else if (i == 256 + 0x3a) {
+						// 切换锁定键
+						key_leds ^= 4;
+						fifo32_put(&keycmd, KEYCMD_LED);
+						fifo32_put(&keycmd, key_leds);
+					}
+					// 数字锁定键
+					else if (i == 256 + 0x45) {
+						key_leds ^= 2;
+						fifo32_put(&keycmd, KEYCMD_LED);
+						fifo32_put(&keycmd, key_leds);
+					}
+					// ScrollLock锁定键
+					else if (i == 256 + 0x46) {
+						key_leds ^= 1;
+						fifo32_put(&keycmd, KEYCMD_LED);
+						fifo32_put(&keycmd, key_leds);
+					}
+					// 发送成功
+					else if (i == 256 + 0xfa) {
+						keycmd_wait = -1;
+					}
+					else if (i == 256 + 0xfe) {
+						wait_KBC_sendready();
+						io_out8(PORT_KEYDAT, keycmd_wait);
 					}
 				}
 			}
@@ -279,23 +388,53 @@ void HariMain(void) {
  * @param title		窗口的标题
  * @param act		窗口颜色，如果为1则是彩色，如果为0则是黑色
  */
-void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act) {
+void
+make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act) {
+	// 上阴影
+	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, xsize - 1, 0);
+	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, xsize - 2, 1);
+	// 左阴影
+	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, 0, ysize - 1);
+	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, 1, ysize -  2);
+	// 右阴影
+	boxfill8(buf, xsize, COL8_848484, xsize - 2, 1, xsize - 2, ysize - 2);
+	boxfill8(buf, xsize, COL8_000000, xsize - 1, 0, xsize - 1, ysize - 1);
+	// 窗口主体
+	boxfill8(buf, xsize, COL8_C6C6C6, 2, 2, xsize - 3, ysize - 3);
+	// 下阴影
+	boxfill8(buf, xsize, COL8_848484, 1, ysize - 2, xsize - 2, ysize - 2);
+	boxfill8(buf, xsize, COL8_000000, 0, ysize - 1, xsize - 1, ysize - 1);
+	// 窗口标题与窗口关闭按钮
+	make_wtitle8(buf, xsize, title, act);
+	return;
+}
+/**
+ * 窗口标题与窗口关闭按钮
+ * @param buf		缓冲区
+ * @param xsize		窗口的宽度
+ * @param title		窗口的标题
+ * @param act		窗口颜色，如果为1则是彩色，如果为0则是黑色
+ */
+
+void make_wtitle8(unsigned char *buf, int xsize, char *title, char act) {
 	static char closebtn[14][16]= {
-			"OOOOOOOOOOOOOOO@",
-			"OQQQQQQQQQQQQQ$@",
-			"OQQQQQQQQQQQQQ$@",
-			"OQQQ@@QQQQ@@QQ$@",
-			"OQQQQ@@QQ@@QQQ$@",
-			"OQQQQQ@@@@QQQQ$@",
-			"OQQQQQQ@@QQQQQ$@",
-			"OQQQQQ@@@@QQQQ$@",
-			"OQQQQ@@QQ@@QQQ$@",
-			"OQQQ@@QQQQ@@QQ$@",
-			"OQQQQQQQQQQQQQ$@",
-			"OQQQQQQQQQQQQQ$@",
-			"O$$$$$$$$$$$$$$@",
-			"@@@@@@@@@@@@@@@@"
+		"OOOOOOOOOOOOOOO@",
+		"OQQQQQQQQQQQQQ$@",
+		"OQQQQQQQQQQQQQ$@",
+		"OQQQ@@QQQQ@@QQ$@",
+		"OQQQQ@@QQ@@QQQ$@",
+		"OQQQQQ@@@@QQQQ$@",
+		"OQQQQQQ@@QQQQQ$@",
+		"OQQQQQ@@@@QQQQ$@",
+		"OQQQQ@@QQ@@QQQ$@",
+		"OQQQ@@QQQQ@@QQ$@",
+		"OQQQQQQQQQQQQQ$@",
+		"OQQQQQQQQQQQQQ$@",
+		"O$$$$$$$$$$$$$$@",
+		"@@@@@@@@@@@@@@@@"
 	};
+
+	// 判断窗口标题颜色
 	int x, y;
 	char c, tc, tbc;
 	if (act == 1) {
@@ -306,16 +445,7 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char ac
 		tc = COL8_C6C6C6;
 		tbc = COL8_848484;
 	}
-	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, xsize - 1, 0);
-	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, xsize - 2, 1);
-	boxfill8(buf, xsize, COL8_C6C6C6, 0, 0, 0, ysize - 1);
-	boxfill8(buf, xsize, COL8_FFFFFF, 1, 1, 1, ysize -  2);
-	boxfill8(buf, xsize, COL8_848484, xsize - 2, 1, xsize - 2, ysize - 2);
-	boxfill8(buf, xsize, COL8_000000, xsize - 1, 0, xsize - 1, ysize - 1);
-	boxfill8(buf, xsize, COL8_C6C6C6, 2, 2, xsize - 3, ysize - 3);
 	boxfill8(buf, xsize, tbc, 3, 3, xsize - 4, 20);
-	boxfill8(buf, xsize, COL8_848484, 1, ysize - 2, xsize - 2, ysize - 2);
-	boxfill8(buf, xsize, COL8_000000, 0, ysize - 1, xsize - 1, ysize - 1);
 	putfonts8_asc(buf, xsize,24, 4, tc, title );
 	for (y = 0; y < 14; y++) {
 		for (x = 0; x < 16; x++) {
@@ -333,7 +463,7 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char ac
 			buf[(5 + y) * xsize + (xsize - 21 + x)] = c;
 		}
 	}
-	return;
+
 }
 
 /**
@@ -380,36 +510,68 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
  * 任务b
  * @param sht_back		要显示的图层地址
 */
-void task_b_main(struct SHEET *sht_win_b){
-	// 缓冲区
-	struct FIFO32 fifo;
+void console_task(struct SHEET *sheet){
 	// 缓冲区数据
 	int fifobuf[128];
 	// 界面刷新定时器
-	struct TIMER *timer_1;
-	int i, count = 0, count0 = 0;
-	char s[12];
+	struct TIMER *timer;
+	// 获取当前任务的地址
+	struct TASK *task = task_now();
+	// 临时变量，字符位置，字符颜色
+	int i, cursor_x = 16, cursor_c = COL8_000000;
+	// 临时变量，用于存储字符
+	char s[2];
 
-	fifo32_init(&fifo, 128, fifobuf, 0);
-	timer_1 = timer_alloc();
-	timer_init(timer_1, &fifo, 100);
-	timer_settime(timer_1, 100);
+	fifo32_init(&task->fifo, 128, fifobuf, task);
+	timer = timer_alloc();
+	timer_init(timer, &task->fifo, 1);
+	timer_settime(timer, 50);
 
+	putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, ">", 1);
 
 	for (;;) {
-		count++;
 		io_cli();
-		if (fifo32_status(&fifo) == 0) {
+		if (fifo32_status(&task->fifo) == 0) {
+			task_sleep(task);
 			io_sti();
 		}
 		else {
-			i = fifo32_get(&fifo);
+			i = fifo32_get(&task->fifo);
 			io_sti();
-			if (i == 100) {
-				sprintf(s, "%11d", count - count0);
-				putfonts8_asc_sht(sht_win_b, 24, 28, COL8_FFFFFF, COL8_008484, s, 11);
-				count0 = count;
-				timer_settime(timer_1, 100);
+			if (i <= 1) {
+				if (i == 1) {
+					timer_init(timer, &task->fifo, 0);
+					cursor_c = COL8_FFFFFF;
+				}
+				else {
+					timer_init(timer, &task->fifo, 1);
+					cursor_c = COL8_000000;
+				}
+				timer_settime(timer, 50);
+				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+			}
+			// 如果有键盘输入，则显示键盘输入
+			if (i >=256 && i <= 511) {
+				// 退格符
+				if (i == 8 + 256) {
+					if (cursor_x > 16) {
+						// 把光标的位置变成背景颜色，再改上一个字符的颜色
+						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
+						cursor_x -=8;
+						boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+						sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+					}
+				}
+				// 一般字符
+				else {
+					if ( cursor_x < 240) {
+						s[0] = i - 256;
+						s[1] = 0;
+						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, s, 1);
+						cursor_x += 8;
+					}
+				}
 			}
 		}
 	}
