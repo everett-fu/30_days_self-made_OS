@@ -45,6 +45,9 @@ void HariMain(void) {
 	// 创建任务a,b
 	struct TASK *task_a, *task_cons;
 
+	// 标志位，用来判断是否按下tab，用来切换任务窗口
+	int key_to = 0;
+
 	// 初始化GDT,IDT
 	init_gdtidt();
 
@@ -208,6 +211,21 @@ void HariMain(void) {
 						cursor_x -=8;
 						boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
 						sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+					}
+					// TAB键
+					else if (i == 256 + 0x0f) {
+						if (key_to == 0) {
+							key_to = 1;
+							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 0);
+							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 1);
+						}
+						else {
+							key_to = 0;
+							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 1);
+							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 0);
+						}
+						sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
+						sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
 					}
 				}
 			}
