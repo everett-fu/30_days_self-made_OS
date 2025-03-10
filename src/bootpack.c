@@ -253,10 +253,7 @@ void HariMain(void) {
 								// 把光标的位置变成背景颜色，再改上一个字符的颜色
 								putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
 								cursor_x -=8;
-								boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-								sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
 							}
-
 						}
 						// 任务b
 						else {
@@ -269,11 +266,17 @@ void HariMain(void) {
 							key_to = 1;
 							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 0);
 							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 1);
+							// 不显示光标
+							cursor_c = -1;
+							boxfill8(sht_win->buf, sht_win->bxsize, COL8_FFFFFF, cursor_x, 28, cursor_x + 7, 43);
+							fifo32_put(&task_cons->fifo, 2);
 						}
 						else {
 							key_to = 0;
 							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 1);
 							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 0);
+							cursor_c = COL8_000000;
+							fifo32_put(&task_cons->fifo, 3);
 						}
 						sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
 						sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
@@ -322,6 +325,11 @@ void HariMain(void) {
 						io_out8(PORT_KEYDAT, keycmd_wait);
 					}
 				}
+				// 重新显示光标
+				if (cursor_c >= 0) {
+					boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				}
+				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
 			}
 			// 如果有鼠标输入，则显示鼠标输入
 			else if (i >= 512 && i <=767) {
@@ -364,17 +372,25 @@ void HariMain(void) {
 			}
 			// 光标寄存器
 			else if (i <= 1) {
-				if (i == 1) {
+				if (i == 1)
+				{
 					timer_init(timer, &fifo, 0);
-					cursor_c = COL8_000000;
+					if (cursor_c >= 0)
+					{
+						cursor_c = COL8_000000;
+					}
 				}
-				else if (i == 0) {
+				else {
 					timer_init(timer, &fifo, 1);
-					cursor_c = COL8_FFFFFF;
+					if (cursor_c >= 0) {
+						cursor_c = COL8_FFFFFF;
+					}
 				}
 				timer_settime(timer, 50);
-				boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+				if (cursor_c >= 0) {
+					boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+					sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+				}
 			}
 		}
 	}
@@ -518,7 +534,7 @@ void console_task(struct SHEET *sheet){
 	// 获取当前任务的地址
 	struct TASK *task = task_now();
 	// 临时变量，字符位置，字符颜色
-	int i, cursor_x = 16, cursor_c = COL8_000000;
+	int i, cursor_x = 16, cursor_c = -1;
 	// 临时变量，用于存储字符
 	char s[2];
 
@@ -538,18 +554,30 @@ void console_task(struct SHEET *sheet){
 		else {
 			i = fifo32_get(&task->fifo);
 			io_sti();
+			// 光标定时器
 			if (i <= 1) {
 				if (i == 1) {
 					timer_init(timer, &task->fifo, 0);
-					cursor_c = COL8_FFFFFF;
+					if (cursor_c >= 0) {
+						cursor_c = COL8_FFFFFF;
+					}
 				}
 				else {
 					timer_init(timer, &task->fifo, 1);
-					cursor_c = COL8_000000;
+					if (cursor_c >= 0) {
+						cursor_c = COL8_000000;
+					}
 				}
 				timer_settime(timer, 50);
-				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-				sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+			}
+			// 打开光标
+			else if (i == 2) {
+				cursor_c = COL8_FFFFFF;
+			}
+			// 关闭光标
+			else if (i == 3) {
+				boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x, 28, cursor_x + 7, 43);
+				cursor_c = -1;
 			}
 			// 如果有键盘输入，则显示键盘输入
 			if (i >=256 && i <= 511) {
@@ -559,8 +587,6 @@ void console_task(struct SHEET *sheet){
 						// 把光标的位置变成背景颜色，再改上一个字符的颜色
 						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
 						cursor_x -=8;
-						boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-						sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
 					}
 				}
 				// 一般字符
@@ -572,6 +598,10 @@ void console_task(struct SHEET *sheet){
 						cursor_x += 8;
 					}
 				}
+			}
+			if (cursor_c >= 0) {
+				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
 			}
 		}
 	}
