@@ -324,6 +324,13 @@ void HariMain(void) {
 						wait_KBC_sendready();
 						io_out8(PORT_KEYDAT, keycmd_wait);
 					}
+					// 回车键
+					else if (i == 256 + 0x1c) {
+						// 发送到命令行窗口
+						if (key_to == 1) {
+							fifo32_put(&task_cons->fifo, 10 + 256);
+						}
+					}
 				}
 				// 重新显示光标
 				if (cursor_c >= 0) {
@@ -533,8 +540,8 @@ void console_task(struct SHEET *sheet){
 	struct TIMER *timer;
 	// 获取当前任务的地址
 	struct TASK *task = task_now();
-	// 临时变量，字符位置，字符颜色
-	int i, cursor_x = 16, cursor_c = -1;
+	// 临时变量，字符位置x，字符位置y，字符颜色
+	int i, cursor_x = 16, cursor_y = 28, cursor_c = -1;
 	// 临时变量，用于存储字符
 	char s[2];
 
@@ -576,7 +583,7 @@ void console_task(struct SHEET *sheet){
 			}
 			// 关闭光标
 			else if (i == 3) {
-				boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x, 28, cursor_x + 7, 43);
+				boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x, cursor_y, cursor_x + 7, cursor_y + 15);
 				cursor_c = -1;
 			}
 			// 如果有键盘输入，则显示键盘输入
@@ -585,24 +592,34 @@ void console_task(struct SHEET *sheet){
 				if (i == 8 + 256) {
 					if (cursor_x > 16) {
 						// 把光标的位置变成背景颜色，再改上一个字符的颜色
-						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, " ", 1);
+						putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
 						cursor_x -=8;
 					}
+				}
+				// 回车键
+				else if (i == 10 + 256) {
+					if (cursor_y < 28 + 112) {
+						putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
+						cursor_y +=  16;
+						putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, ">", 1);
+						cursor_x = 16;
+					}
+
 				}
 				// 一般字符
 				else {
 					if ( cursor_x < 240) {
 						s[0] = i - 256;
 						s[1] = 0;
-						putfonts8_asc_sht(sheet, cursor_x, 28, COL8_FFFFFF, COL8_000000, s, 1);
+						putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
 						cursor_x += 8;
 					}
 				}
 			}
 			if (cursor_c >= 0) {
-				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-				sheet_refresh(sheet, cursor_x, 28, cursor_x + 8, 44);
+				boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, cursor_y, cursor_x + 7, cursor_y + 15);
 			}
+			sheet_refresh(sheet, cursor_x, cursor_y, cursor_x + 8, cursor_y + 16);
 		}
 	}
 }
