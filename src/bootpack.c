@@ -16,6 +16,7 @@
  * Usage:
  */
 #include <stdio.h>
+#include <string.h>
 #include "bootpack.h"
 
 void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
@@ -596,7 +597,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 					cmdline[cursor_x / 8 -2] = 0;
 					cursor_y = cons_newline(cursor_y, sheet);
 					// free命令，显示剩余内存
-					if (cmdline[0] == 'f' && cmdline[1] == 'r' && cmdline[2] == 'e' && cmdline[3] == 'e' && cmdline[4] == 0) {
+					if (strcmp(cmdline, "free") == 0) {
 						sprintf(s, "     total    used    free");
 						putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, s, 30);
 						cursor_y = cons_newline(cursor_y, sheet);
