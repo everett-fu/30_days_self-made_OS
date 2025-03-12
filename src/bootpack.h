@@ -22,6 +22,7 @@ struct BOOTINFO {
 	unsigned char *vram;
 };
 #define ADR_BOOTINFO    0x00000ff0
+#define ADR_DISKIMG		0x00100000
 
 // naskfunc.nas
 void io_hlt(void);

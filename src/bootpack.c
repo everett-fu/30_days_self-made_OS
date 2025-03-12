@@ -26,6 +26,27 @@ void console_task(struct SHEET *sheet, unsigned int memtotal);
 void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
 int cons_newline(int cursor_y, struct SHEET *sheet);
 
+struct FILEINFO {
+	// 文件名，扩展名，文件类型
+	// 文件名8个字节，如果小于8个用空格补足，文件名的第一个字节为0xe5，代表这个文件已经被删除，第一个字节为0x00，代码这段不包含任务文件名信息
+	// 扩展名3个字节，不足用空格补足
+	// 文件属性信息1字节
+	// 0x00：无特殊属性，表示普通文件或目录。
+	// 0x20（Normal）：普通文件，没有其他特殊属性（如隐藏、系统等）。
+	// 0x01（Read-Only）：文件是只读的，不能被修改或删除。
+	// 0x02（Hidden）：文件是隐藏的，默认情况下不会显示。
+	// 0x04（System）：文件是系统文件，可能受到保护，避免用户误删。
+	// 0x08（Archive）：归档文件，通常用于备份或增量备份操作。
+	// 0x10（Directory）：目录（文件夹）
+	unsigned char name[8], ext[3], type;
+	// 保留字节
+	char reserve[10];
+	// 文件时间，日期，簇号
+	unsigned short time, date, clustno;
+	// 文件大小
+	unsigned int size;
+};
+
 void HariMain(void) {
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	// 输入缓冲区，向键盘输出的缓冲区
@@ -546,6 +567,8 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 
 	putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, ">", 1);
 
+struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
+
 	for (;;) {
 		io_cli();
 		if (fifo32_status(&task->fifo) == 0) {
@@ -616,6 +639,31 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 						}
 						sheet_refresh(sheet, 8, 28, 8 + 240, 28 + 128);
 						cursor_y = 28;
+					}
+					else if (strcmp(cmdline, "ls") == 0) {
+						// 最多存放224个文件
+						for (x = 0; x < 224; x++) {
+							// 这段不含文件信息
+							if (finfo[x].name[0] == 0x00) {
+								break;
+							}
+							// 文件没有被删除
+							else if (finfo[x].name[0] != 0xe5) {
+								// 不是归档文件或者目录
+								if ((finfo[x].type & 0x18) == 0)  {
+									sprintf(s, "filename.ext %7d", finfo[x].size);
+									for (y = 0; y < 8; y++) {
+										s[y] = finfo[x].name[y];
+									}
+									s[9] = finfo[x].ext[0];
+									s[10] = finfo[x].ext[1];
+									s[11] = finfo[x].ext[2];
+									putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, s, 30);
+									cursor_y = cons_newline(cursor_y, sheet);
+								}
+							}
+						}
+						cursor_y = cons_newline(cursor_y, sheet);
 					}
 					// 不是命令，也不是空行，即为错误命令
 					else if (cmdline[0] != 0) {
