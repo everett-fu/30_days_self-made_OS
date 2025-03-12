@@ -607,6 +607,16 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 						cursor_y = cons_newline(cursor_y, sheet);
 						cursor_y = cons_newline(cursor_y, sheet);
 					}
+					// clear命令，清屏
+					else if (strcmp(cmdline, "clear") == 0) {
+						for (y = 28; y < 28 + 128; y++) {
+							for (x = 8; x < 8 + 240; x++) {
+								sheet->buf[x + y * sheet->bxsize] = COL8_000000;
+							}
+						}
+						sheet_refresh(sheet, 8, 28, 8 + 240, 28 + 128);
+						cursor_y = 28;
+					}
 					// 不是命令，也不是空行，即为错误命令
 					else if (cmdline[0] != 0) {
 						putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, "command not found!", 19);
