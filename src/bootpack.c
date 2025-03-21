@@ -696,15 +696,21 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 							if (finfo[x].name[0] == 0x00) {
 								break;
 							}
-							// 为目录或者归档文件
+							// 为不是目录或者归档文件
 							if ((finfo[x].type & 0x18) == 0) {
-								// 文件名匹配上
+								// 文件名不能匹配上
 								for (y = 0; y < 11; y++) {
 									if (finfo[x].name[y] != s[y]) {
-										file_flag = 1;
-										x++;
+										break;
 									}
+									// 能匹配上
+									file_flag = 1;
 								}
+								// 文件名不能匹配上则检查下一个文件
+								if (file_flag == 0) {
+									continue;
+								}
+								// 可以匹配上，跳出循环，开始显示字符
 								break;
 							}
 						}
