@@ -557,7 +557,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	// 临时变量
 	int x, y;
 	// 临时变量，用于存储字符
-	char s[30], cmdline[30];
+	char s[30], cmdline[30], *p;
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
 
 	fifo32_init(&task->fifo, 128, fifobuf, task);
@@ -567,7 +567,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 
 	putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, ">", 1);
 
-struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
+	struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
 
 	for (;;) {
 		io_cli();
@@ -640,6 +640,7 @@ struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
 						sheet_refresh(sheet, 8, 28, 8 + 240, 28 + 128);
 						cursor_y = 28;
 					}
+					// 查看文件
 					else if (strcmp(cmdline, "ls") == 0) {
 						// 最多存放224个文件
 						for (x = 0; x < 224; x++) {
@@ -664,6 +665,72 @@ struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
 							}
 						}
 						cursor_y = cons_newline(cursor_y, sheet);
+					}
+					// cat命令，只比较前四个字符，后面的为文件名
+					else if (strncmp(cmdline, "cat ", 4) == 0) {
+						// 将字符串S用空格填充
+						for (y = 0; y < 11; y++) {
+							s[y] = ' ';
+						}
+
+						// 将文件名读取到字符串S中，文件名8位，不满的用空格填充，第8位开始为后缀名，后缀名3位
+						for (y = 0, x = 4; y < 11 && cmdline[x] != 0; x++) {
+							if (cmdline[x] == '.' && y <= 8) {
+								y = 8;
+							}
+							else {
+								s[y] = cmdline[x];
+								// 如果是小写字母，将字母转换成大写
+								if (s[y] >= 'a' && s[y] <= 'z') {
+									s[y] -= 0x20;
+								}
+								y++;
+							}
+						}
+						// 是否找到文件，为0则是没有找到，为1则找到了文件
+						char file_flag = 0;
+						// 查找文件
+						// 与文件格式中一个个对比
+						for (x = 0; x < 224; x++) {
+							// 该数据段不含内容
+							if (finfo[x].name[0] == 0x00) {
+								break;
+							}
+							// 为目录或者归档文件
+							if ((finfo[x].type & 0x18) == 0) {
+								// 文件名匹配上
+								for (y = 0; y < 11; y++) {
+									if (finfo[x].name[y] != s[y]) {
+										file_flag = 1;
+										x++;
+									}
+								}
+								break;
+							}
+						}
+						if (file_flag) {
+							y = finfo[x].size;
+							p = (char *)(finfo[x].clustno * 512 + 0x003e00 + ADR_DISKIMG);
+							cursor_x = 8;
+							for (x = 0; x < y; x++) {
+								s[0] = p[x];
+								s[1] = 0;
+								putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
+								cursor_x += 8;
+								// 如果到界面最后，进行换行
+								if (cursor_x == 8 + 240) {
+									cursor_x = 8;
+									cursor_y = cons_newline(cursor_y, sheet);
+								}
+							}
+						}
+						// 没有找到文件
+						else {
+							putfonts8_asc_sht(sheet, 8, cursor_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
+							cursor_y = cons_newline(cursor_y, sheet);
+						}
+						cursor_y = cons_newline(cursor_y, sheet);
+
 					}
 					// 不是命令，也不是空行，即为错误命令
 					else if (cmdline[0] != 0) {
