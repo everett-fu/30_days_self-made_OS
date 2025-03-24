@@ -1,14 +1,14 @@
 ; haribote-os boot asm
 ; TAB=4
 
-BOTPAK	EQU		0x00280000		; bootpackのロード先
-DSKCAC	EQU		0x00100000		; ディスクキャッシュの場所
-DSKCAC0	EQU		0x00008000		; ディスクキャッシュの場所（リアルモード）
+BOTPAK	EQU		0x00280000		; 在何处加载引导包
+DSKCAC	EQU		0x00100000		; 磁盘缓存位置
+DSKCAC0	EQU		0x00008000		; 磁盘缓存位置 （实模式）
 
 ; BOOT_INFO信息
 CYLS    EQU 0x0ff0                  ; 设定启动区
-LEDS    EQU 0x0ff1
-VBEMODE EQU 0x0105
+LEDS    EQU 0x0ff1                  ; 键盘LED状态
+VBEMODE EQU 0x0105                  ; VBE画面模式
 VMODE   EQU 0x0ff2                  ; 关于颜色数目的信息，颜色的位数
 SCRNX   EQU 0x0ff4                  ; 屏幕的x分辨率
 SCRNY   EQU 0x0ff6                  ; 屏幕的y分辨率
@@ -181,7 +181,6 @@ memcpy:
 		SUB		ECX,1
 		JNZ		memcpy			; 减法运算的结果如果不是0，就跳到memcpy
 		RET
-; memcpyはアドレスサイズプリフィクスを入れ忘れなければ、ストリング命令でも書ける
 
 ; ALIGNB一直添加0，直到地址是16的倍数
 		ALIGNB	16

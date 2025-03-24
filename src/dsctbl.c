@@ -10,8 +10,6 @@
  * - init_gdtidt: 初始化GDT,IDT
  * - set_segmdesc: 设置段描述符
  * - set_gatedesc: 设置门描述符
- * - load_gdtr: 加载GDT
- * - load_idtr: 加载IDT
  *
  * Usage:
  */

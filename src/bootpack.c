@@ -12,6 +12,7 @@
  * - putfonts8_asc_sht: 在图层上显示字符串
  * - make_textbox8: 创建文本框
  * - console_task: 创建终端窗口
+ * - int cons_newline(int cursor_y, struct SHEET *sheet): 换行函数
  *
  * Usage:
  */
@@ -48,22 +49,36 @@ struct FILEINFO {
 };
 
 void HariMain(void) {
+	// 获取启动信息
 	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	// 输入缓冲区，向键盘输出的缓冲区
 	struct FIFO32 fifo, keycmd;
+	// 临时变量，用来存储字符串
 	char s[40];
+	// 临时变量，用来存储数据与键盘信息
 	int fifobuf[128], keycmd_buf[32];
 
+	// 申请定时器
 	struct TIMER *timer;
-	int mx, my, i;
+	// 鼠标坐标mx，my
+	int mx, my;
+	// 临时变量
+	int i;
+	// 鼠标数据
 	struct MOUSE_DEC mdec;
+	// 内存总数
 	unsigned int memtotal;
+	// 内存管理结构体
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 
+	// 图层控制器
 	struct SHTCTL *shtctl;
+	// 背景图层，鼠标图层，窗口图层，终端窗口图层
 	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons;
+	// 背景图层缓冲区，鼠标图层缓冲区，窗口图层缓冲区，终端窗口图层缓冲区
 	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_cons;
 
+	// 光标位置，光标颜色
 	int cursor_x, cursor_c;
 
 	// 创建任务a,b
@@ -174,6 +189,7 @@ void HariMain(void) {
 	task_cons = task_alloc();
 	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
 	task_cons->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 12;
+	// 设置任务b的堆栈信息
 	task_cons->tss.eip = (int) &console_task;
 	task_cons->tss.es = 1 * 8;
 	task_cons->tss.cs = 2 * 8;
@@ -382,15 +398,13 @@ void HariMain(void) {
 					if (my > binfo->scrny - 1) {
 						my = binfo->scrny - 1;
 					}
-					// 显示鼠标坐标
-					sprintf(s, "(%3d, %3d)", mx, my);
-					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
 					// 显示鼠标
 					sheet_slide(sht_mouse, mx, my);
 				}
 			}
 			// 光标寄存器
 			else if (i <= 1) {
+				// 光标闪烁
 				if (i == 1)
 				{
 					timer_init(timer, &fifo, 0);
@@ -482,6 +496,7 @@ void make_wtitle8(unsigned char *buf, int xsize, char *title, char act) {
 	}
 	boxfill8(buf, xsize, tbc, 3, 3, xsize - 4, 20);
 	putfonts8_asc(buf, xsize,24, 4, tc, title );
+	// 显示关闭按钮
 	for (y = 0; y < 14; y++) {
 		for (x = 0; x < 16; x++) {
 			c = closebtn[y][x];
@@ -544,6 +559,7 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 /**
  * 任务b
  * @param sht_back		要显示的图层地址
+ * @param memtotal		内存地址
 */
 void console_task(struct SHEET *sheet, unsigned int memtotal){
 	// 缓冲区数据
@@ -567,6 +583,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 
 	putfonts8_asc_sht(sheet, 8, 28, COL8_FFFFFF, COL8_000000, ">", 1);
 
+	// 命令行缓冲区
 	struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG + 0x002600);
 
 	for (;;) {
@@ -795,23 +812,35 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	}
 }
 
+/**
+ * 换行函数
+ * @param cursor_y		光标位置
+ * @param sheet			图层
+ * @return				返回当前光标纵坐标
+ */
 int cons_newline(int cursor_y, struct SHEET *sheet) {
 	int x, y;
+	// 如果没有超出窗口纵向范围
 	if (cursor_y < 28 + 112) {
-		cursor_y +=  16;
+		cursor_y += 16;
 	}
+	// 超出窗口纵向范围
 	else {
+		// 将窗口内容向上移动
 		for (y = 28; y < 28 + 112; y++) {
 			for (x = 8; x < 8 + 240; x++) {
 				sheet->buf[x + y * sheet->bxsize] = sheet->buf[x + (y + 16) * sheet->bxsize];
 			}
 		}
+		// 清除最后一行
 		for (y = 28 + 112; y < 28 + 128; y++) {
 			for (x = 8; x < 8 + 240; x++) {
 				sheet->buf[x + y * sheet->bxsize] = COL8_000000;
 			}
 		}
+		// 显示命令提示符>
 		sheet_refresh(sheet, 8, 28, 8 + 240, 28 + 128);
 	}
+	// 返回当前光标纵坐标
 	return cursor_y;
 }

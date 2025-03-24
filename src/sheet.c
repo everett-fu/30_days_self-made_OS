@@ -178,8 +178,8 @@ void sheet_refresh(struct SHEET *sht, int bx0, int by0, int bx1, int by1) {
 /**
  * 移动图层
  * @param sht 图层
- * @param vx x轴坐标
- * @param vy y轴坐标
+ * @param vx0 x轴坐标
+ * @param vy0 y轴坐标
  */
 void sheet_slide(struct SHEET *sht, int vx0, int vy0) {
 //	struct SHTCTL *ctl = sht->ctl;
@@ -226,6 +226,7 @@ void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 	int h, bx, by, vx, vy, bx0, by0, bx1, by1;
 	unsigned char *buf, *vram = ctl->vram, *map = ctl->map, sid;
 	struct SHEET *sht;
+	// 判断边界是否有超
 	if (vx0 < 0) {
 		vx0 = 0;
 	}
@@ -289,6 +290,7 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 	int h, bx, by, vx, vy, bx0, by0, bx1, by1;
 	unsigned char *buf, sid, *map = ctl->map;
 	struct SHEET *sht;
+	// 判断边界是否有超
 	if (vx0 < 0) {
 		vx0 = 0;
 	}

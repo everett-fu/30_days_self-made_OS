@@ -111,7 +111,7 @@ _load_idtr:												; void load_idtr(int limit, int addr);
 	RET
 
 ; 计时器中断处理程序
-_asm_inthandler20:
+_asm_inthandler20:          ; void inthandler20(int *esp);
 	PUSH	ES
 	PUSH	DS
 	PUSHAD

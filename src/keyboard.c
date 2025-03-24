@@ -15,9 +15,13 @@
  */
 #include "bootpack.h"
 
+// 键盘控制电路的端口
 #define PORT_KEYSTA 0x0064
+// 键盘数据端口
 #define KEYSTA_SEND_NOTREADY 0x02
+// 键盘模式指令
 #define KEYCMD_WRITE_MODE 0x60
+// 鼠标模式指令
 #define KBC_MODE 0x47
 
 struct FIFO32 *keyfifo;
@@ -25,7 +29,7 @@ int keydata0;
 
 /**
  * 处理键盘中断
- * @param esp
+ * @param esp		中断栈指针
  */
 void inthandler21(int *esp) {
 	int data;

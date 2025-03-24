@@ -19,6 +19,7 @@
 
 #include "bootpack.h"
 
+// PIT端口
 #define PIT_CTRL 0x0043
 #define PIT_CNT0 0x0040
 
@@ -59,7 +60,7 @@ void init_pit(void) {
 
 /**
  * 处理定时器中断
- * @param esp
+ * @param esp		中断栈指针
  */
 void inthandler20(int *esp) {
 	struct TIMER *timer;

@@ -24,8 +24,6 @@
 struct TASKCTL *taskctl;
 struct TIMER *task_timer;
 
-
-
 /**
  * 初始化任务控制块
  * @param memman		内存管理结构体

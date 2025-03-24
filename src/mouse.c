@@ -16,7 +16,10 @@
 
 #include "bootpack.h"
 
+// 当发送d4以后，下一个数据会自动发送给鼠标
+// 控制键盘将数据发送给鼠标的命令
 #define KEYCMD_SENDTO_MOUSE 0xd4
+// 开始鼠标电路指令
 #define MOUSECMD_ENABLE 0xf4
 
 struct FIFO32 *mousefifo;
@@ -24,7 +27,7 @@ int mousedata0;
 
 /**
  * 处理鼠标中断
- * @param esp
+ * @param esp		中断栈指针
  */
 void inthandler2c(int *esp) {
 	int data;
@@ -46,8 +49,10 @@ void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec) {
 	mousedata0 = data0;
 	// 激活鼠标
 	wait_KBC_sendready();
+	// 向键盘控制电路发送命令0xd4，下一个数据会自动发送给鼠标
 	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
 	wait_KBC_sendready();
+	// 将命令0xf4发送给鼠标
 	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
 	mdec->phase = 0;
 	return;
