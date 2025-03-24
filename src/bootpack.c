@@ -721,12 +721,40 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 							for (x = 0; x < y; x++) {
 								s[0] = p[x];
 								s[1] = 0;
-								putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
-								cursor_x += 8;
-								// 如果到界面最后，进行换行
-								if (cursor_x == 8 + 240) {
+								// 制表符
+								if (s[0] == 0x09) {
+									for (;;) {
+										putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, " ", 1);
+										cursor_x += 8;
+										// 如果到界面最后，进行换行
+										if (cursor_x == 8 + 240) {
+											cursor_x = 8;
+											cursor_y = cons_newline(cursor_y, sheet);
+										}
+										// 如果光标位置是32的倍数，则跳出循环
+										// 减8是因为光标位置是从8开始的，开始有8个像素是窗口的宽度
+										if (((cursor_x - 8) & 0x1f) == 0) {
+											break;
+										}
+									}
+								}
+								// 换行符
+								else if (s[0] == 0x0a) {
 									cursor_x = 8;
 									cursor_y = cons_newline(cursor_y, sheet);
+								}
+								// 回车符
+								else if (s[0] == 0x0d) {
+								}
+								// 一般字符
+								else {
+									putfonts8_asc_sht(sheet, cursor_x, cursor_y, COL8_FFFFFF, COL8_000000, s, 1);
+									cursor_x += 8;
+									// 如果到界面最后，进行换行
+									if (cursor_x == 8 + 240) {
+										cursor_x = 8;
+										cursor_y = cons_newline(cursor_y, sheet);
+									}
 								}
 							}
 						}
