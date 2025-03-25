@@ -14,7 +14,8 @@ IMAGESPATH		=../$(IMAGES)/
 OBJS_BOOTPACK = $(BUILDPATH)bootpack.obj $(BUILDPATH)naskfunc.obj $(BUILDPATH)hankaku.obj \
 	$(BUILDPATH)graphic.obj $(BUILDPATH)dsctbl.obj $(BUILDPATH)int.obj $(BUILDPATH)fifo.obj \
 	$(BUILDPATH)keyboard.obj $(BUILDPATH)mouse.obj $(BUILDPATH)memory.obj \
-	$(BUILDPATH)sheet.obj $(BUILDPATH)timer.obj $(BUILDPATH)mtask.obj
+	$(BUILDPATH)sheet.obj $(BUILDPATH)timer.obj $(BUILDPATH)mtask.obj \
+	$(BUILDPATH)window.obj $(BUILDPATH)console.obj $(BUILDPATH)file.obj \
 
 # 编译工具目录
 MAKE		= $(TOOLPATH)make.exe -r

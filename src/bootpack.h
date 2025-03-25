@@ -356,3 +356,38 @@ void task_add(struct TASK *task);
 void task_remove(struct TASK *task);
 void task_switchsub(void);
 void task_idle(void);
+
+// window.c
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
+void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
+void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+
+//console.c
+void console_task(struct SHEET *sheet, unsigned int memtotal);
+int cons_newline(int cursor_y, struct SHEET *sheet);
+
+//file.c
+struct FILEINFO {
+	// 文件名，扩展名，文件类型
+	// 文件名8个字节，如果小于8个用空格补足，文件名的第一个字节为0xe5，代表这个文件已经被删除，第一个字节为0x00，代码这段不包含任务文件名信息
+	// 扩展名3个字节，不足用空格补足
+	// 文件属性信息1字节
+	// 0x00：无特殊属性，表示普通文件或目录。
+	// 0x20（Normal）：普通文件，没有其他特殊属性（如隐藏、系统等）。
+	// 0x01（Read-Only）：文件是只读的，不能被修改或删除。
+	// 0x02（Hidden）：文件是隐藏的，默认情况下不会显示。
+	// 0x04（System）：文件是系统文件，可能受到保护，避免用户误删。
+	// 0x08（Archive）：归档文件，通常用于备份或增量备份操作。
+	// 0x10（Directory）：目录（文件夹）
+	unsigned char name[8], ext[3], type;
+	// 保留字节
+	char reserve[10];
+	// 文件时间，日期，簇号
+	unsigned short time, date, clustno;
+	// 文件大小
+	unsigned int size;
+};
+
+void file_readfat(int *fat, unsigned char *img);
+void file_loadfile(int clustno, int size, char *buf, int *fat, char *img);
