@@ -52,6 +52,8 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	// 将磁盘中的fat表解密
 	file_readfat(fat, (unsigned char *)(ADR_DISKIMG + 0x000200));
 
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)ADR_GDT;
+
 	for (;;) {
 		io_cli();
 		if (fifo32_status(&task->fifo) == 0) {
@@ -170,13 +172,14 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 								y++;
 							}
 						}
-						// 是否找到文件，为0则是没有找到，为1则找到了文件
-						char file_flag = 0;
 						// 查找文件
 						// 与文件格式中一个个对比
 						for (x = 0; x < 224; x++) {
+							// 是否找到文件，为0则是没有找到，为1则找到了文件
+							char file_flag = 1;
 							// 该数据段不含内容
 							if (finfo[x].name[0] == 0x00) {
+								file_flag = 0;
 								break;
 							}
 							// 为不是目录或者归档文件
@@ -184,22 +187,18 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 								// 文件名不能匹配上
 								for (y = 0; y < 11; y++) {
 									if (finfo[x].name[y] != s[y]) {
+										file_flag = 0;
 										break;
 									}
-									// 能匹配上
-									file_flag = 1;
-								}
-								// 文件名不能匹配上则检查下一个文件
-								if (file_flag == 0) {
-									continue;
 								}
 								// 可以匹配上，跳出循环，开始显示字符
-								break;
+								if (file_flag == 1) {
+									break;
+								}
 							}
 						}
-						// 找到了文件
-						if (file_flag) {
-							p = (char *)memman_alloc_4k(memman, finfo[x].size);
+						if (x < 224 && finfo[x].name[0] != 0x00) {
+							p = (char *) memman_alloc_4k(memman, finfo[x].size);
 							// 加载文件
 							file_loadfile(finfo[x].clustno, finfo[x].size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
 							cursor_x = 8;
@@ -252,7 +251,6 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 							cursor_y = cons_newline(cursor_y, sheet);
 						}
 						cursor_y = cons_newline(cursor_y, sheet);
-
 					}
 					// 不是命令，也不是空行，即为错误命令
 					else if (cmdline[0] != 0) {
