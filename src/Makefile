@@ -58,15 +58,20 @@ $(BUILDPATH)bootpack.bim : $(OBJS_BOOTPACK) Makefile
 $(BUILDPATH)bootpack.hrb : $(BUILDPATH)bootpack.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)bootpack.bim $(BUILDPATH)bootpack.hrb 0
 
+$(BUILDPATH)hlt.hrb : hlt.nas Makefile
+	$(NASK) hlt.nas $(BUILDPATH)hlt.hrb $(BUILDPATH)hlt.lst
+
+
 $(BUILDPATH)haribote.sys : $(BUILDPATH)asmhead.bin $(BUILDPATH)bootpack.hrb Makefile
 	copy /B $(BUILDPATH_W)asmhead.bin+$(BUILDPATH_W)bootpack.hrb $(BUILDPATH_W)haribote.sys
 
-$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys Makefile
+$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hlt.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
 		copy from:ipl10.nas to:@: \
 		copy from:make.bat to:@: \
+		copy from:$(BUILDPATH)hlt.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
@@ -95,6 +100,7 @@ clean :
 	-$(DEL) $(BUILDPATH_W)*.bin
 	-$(DEL) $(BUILDPATH_W)*.lst
 	-$(DEL) $(BUILDPATH_W)*.obj
+	-$(DEL) $(BUILDPATH_W)*.hrb
 	-$(DEL) $(BUILDPATH_W)bootpack.map
 	-$(DEL) $(BUILDPATH_W)bootpack.bim
 	-$(DEL) $(BUILDPATH_W)bootpack.hrb
