@@ -21,7 +21,9 @@ struct BOOTINFO {
 	// 显存地址
 	unsigned char *vram;
 };
+// 启动信息存储的地址
 #define ADR_BOOTINFO    0x00000ff0
+// 0x00100000:0x00267fff，用于保存软盘内容
 #define ADR_DISKIMG		0x00100000
 
 // naskfunc.nas
@@ -109,20 +111,31 @@ struct GATE_DESCRIPTOR {
 void init_gdtidt(void);
 void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar);
 void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
+// IDT表的地址
 #define ADR_IDT			0x0026f800
+// 最多有多少个中断
 #define LIMIT_IDT		0x000007ff
+// GDT表的地址
 #define ADR_GDT			0x00270000
+// 最多有多少个段
 #define LIMIT_GDT		0x0000ffff
+// bootpack的地址
 #define ADR_BOTPAK		0x00280000
+// bootpack的大小
 #define LIMIT_BOTPAK	0x0007ffff
+// 段访问权限
 #define AR_DATA32_RW	0x4092
+// 段访问权限
 #define AR_CODE32_ER	0x409a
+// 段访问权限
 #define AR_INTGATE32	0x008e
+// 段访问权限
 #define AR_TSS32		0x0089
 
 // int.c
 void init_pic(void);
 void inthandler27(int *esp);
+// 中断数据端口
 #define PIC0_ICW1		0x0020
 #define PIC0_OCW2		0x0020
 #define PIC0_IMR		0x0021
@@ -144,6 +157,7 @@ void init_keyboard(struct FIFO32 *fifo, int data0);
 #define PORT_KEYDAT 0x0060
 // 键盘控制电路
 #define PORT_KEYCMD 0x0064
+// 键盘状态寄存器
 #define KEYCMD_LED 0xed
 // 键盘字符
 static char keytable0[0x80] = {
@@ -181,7 +195,9 @@ void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec);
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char data);
 
 // memory.c
+// 可用内存的最大数量
 #define MEMMAN_FREES 4090
+// 内存起始地址
 #define MEMMAN_ADDR 0x003c0000
 // 可用内存信息
 struct FREEINFO {
@@ -192,6 +208,7 @@ struct FREEINFO {
 struct MEMMAN {
 	// 可用信息数量，最大frees数量，释放失败内存大小总和，释放失败次数
 	int frees, maxfrees, lostsize, losts;
+	// 可用内存数组
 	struct FREEINFO free[MEMMAN_FREES];
 };
 unsigned int memtest(unsigned int start, unsigned int end);
@@ -203,6 +220,7 @@ unsigned int memman_alloc_4k(struct MEMMAN *man, unsigned int size);
 int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size);
 
 // sheet.c
+// 图层的最大数量
 #define MAX_SHEETS 256
 struct SHEET {
 	// buf: 图层的显存地址
@@ -232,6 +250,7 @@ void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
 
 // timer.c
+// 最大定时器数量
 #define MAX_TIMER 500
 // 计时器
 struct TIMER {
@@ -337,3 +356,38 @@ void task_add(struct TASK *task);
 void task_remove(struct TASK *task);
 void task_switchsub(void);
 void task_idle(void);
+
+// window.c
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char act);
+void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
+void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+
+//console.c
+void console_task(struct SHEET *sheet, unsigned int memtotal);
+int cons_newline(int cursor_y, struct SHEET *sheet);
+
+//file.c
+struct FILEINFO {
+	// 文件名，扩展名，文件类型
+	// 文件名8个字节，如果小于8个用空格补足，文件名的第一个字节为0xe5，代表这个文件已经被删除，第一个字节为0x00，代码这段不包含任务文件名信息
+	// 扩展名3个字节，不足用空格补足
+	// 文件属性信息1字节
+	// 0x00：无特殊属性，表示普通文件或目录。
+	// 0x20（Normal）：普通文件，没有其他特殊属性（如隐藏、系统等）。
+	// 0x01（Read-Only）：文件是只读的，不能被修改或删除。
+	// 0x02（Hidden）：文件是隐藏的，默认情况下不会显示。
+	// 0x04（System）：文件是系统文件，可能受到保护，避免用户误删。
+	// 0x08（Archive）：归档文件，通常用于备份或增量备份操作。
+	// 0x10（Directory）：目录（文件夹）
+	unsigned char name[8], ext[3], type;
+	// 保留字节
+	char reserve[10];
+	// 文件时间，日期，簇号
+	unsigned short time, date, clustno;
+	// 文件大小
+	unsigned int size;
+};
+
+void file_readfat(int *fat, unsigned char *img);
+void file_loadfile(int clustno, int size, char *buf, int *fat, char *img);

@@ -19,8 +19,9 @@
  */
 #include "bootpack.h"
 
-
+// 确认cpu是486还是386，如果是486以上的cpu，eflags的第18位是1
 #define EFLAGS_AC_BIT 0x00040000
+// 缓存标志位
 #define CR0_CACHE_DISABLE 0x60000000
 
 /**

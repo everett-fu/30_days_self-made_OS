@@ -7,6 +7,8 @@
  * 这个文件包含了一些关于中断的函数。
  *
  * Functions:
+ * - init_pic: 初始化PIC
+ * - inthandler27: 处理PIC0的不完全中断
  *
  * Usage:
  */
@@ -37,6 +39,10 @@ void init_pic(void) {
 	return;
 }
 
+/**
+ * 处理PIC0的不完全中断
+ * @param esp		中断栈指针
+ */
 void inthandler27(int *esp)
 /*
  * 处理PIC0的不完全中断
@@ -46,6 +52,6 @@ void inthandler27(int *esp)
  * 这个中断是由PIC初始化时的电气噪声引起的，所以不需要认真处理它。
  */
 {
-	io_out8(PIC0_OCW2, 0x67); /* IRQ-07受付完了をPICに通知(7-1参照) */
+	io_out8(PIC0_OCW2, 0x67); /* 向 PIC 发送 IRQ-07 接收完成的通知（见 7-1） */
 	return;
 }
