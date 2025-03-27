@@ -363,7 +363,8 @@ void cmd_hlt(struct CONSOLE *cons, int *fat) {
 		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
 		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
 		// 跳转到指定位置
-		farjmp(0, 1003 * 8);
+		farcall(0, 1003 * 8);
+//		farjmp(0, 1003 * 8);
 		memman_free_4k(memman, (int) p, finfo->size);
 	}
 	// 没有找到文件

@@ -14,9 +14,9 @@
 	GLOBAL _io_load_eflags, _io_store_eflags
 	GLOBAL _load_gdtr, _load_idtr
 	GLOBAL _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
-	EXTERN _inthandler20, _inthandler21, _inthandler27, _inthandler2c
 	GLOBAL _load_cr0, _store_cr0, _memtest_sub
 	GLOBAL _load_tr, _farjmp, _asm_cons_putchar
+	GLOBAL _farcall
 	EXTERN	_inthandler20, _inthandler21
     EXTERN	_inthandler27, _inthandler2c
     EXTERN	_cons_putchar
@@ -254,3 +254,10 @@ _asm_cons_putchar:
     ; 移除栈里的数据
     ADD     ESP, 12
     RETF
+
+; 这个函数是为了让汇编程序调用C函数
+; 这个函数的参数是一个32位的地址
+; 这个函数会将这个地址压入栈中，然后调用C函数
+_farcall:           ; void farcall(int eip, int cs);
+    CALL    FAR [ESP + 4]     ; eip, cs
+    RET
