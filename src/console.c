@@ -39,6 +39,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	cons.cur_x = 8;
 	cons.cur_y = 28;
 	cons.cur_c = -1;
+	*((int*) 0x0fec) = (int)&cons;
 	// 临时变量，用于存储字符
 	char cmdline[30];
 
