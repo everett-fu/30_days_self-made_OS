@@ -241,6 +241,8 @@ _farjmp:                        ; void farjmp(int eip, int cs);
 
 ; 显示单个字节API，应用程序将调用这个函数，然后这个函数调用cons_putchar函数
 _asm_cons_putchar:
+    ; 允许中断
+    STI
     ; move
     PUSH    1
     ; 将EAX高16位置为0，保留低16位，即AX
@@ -253,7 +255,8 @@ _asm_cons_putchar:
     CALL    _cons_putchar
     ; 移除栈里的数据
     ADD     ESP, 12
-    RETF
+    ; 如果用中断，将要用IRETD返回
+    IRETD
 
 ; 这个函数是为了让汇编程序调用C函数
 ; 这个函数的参数是一个32位的地址
