@@ -9,6 +9,13 @@
  *Functions:
  * - console_task: 任务b
  * - cons_newline: 换行函数
+ * - cons_putchar: 显示字符
+ * - cons_runcmd: 运行命令
+ * - cmd_free: 显示剩余内存
+ * - cmd_clear: 清屏
+ * - cmd_ls: 显示文件
+ * - cmd_cat: 显示文件内容
+ * - int cmd_app: 运行应用程序
  *
  * Usage:
  */
@@ -234,14 +241,13 @@ void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int mem
 	else if (strncmp(cmdline, "cat ", 4) == 0) {
 		cmd_cat(cons, fat, cmdline);
 	}
-	// hlt命令，使窗口休眠
-	else if (strcmp(cmdline, "hlt") == 0) {
-		cmd_hlt(cons, fat);
-	}
 	else if (cmdline[0] != 0) {
-		putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "command not found!", 19);
-		cons_newline(cons);
-		cons_newline(cons);
+		// 不是命令
+		if (cmd_app(cons, fat, cmdline) == 0) {
+			putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "command not found!", 19);
+			cons_newline(cons);
+			cons_newline(cons);
+		}
 	}
 	return;
 }
@@ -347,31 +353,49 @@ void cmd_cat(struct CONSOLE *cons, int *fat, char *cmdline) {
 	return;
 }
 
+
 /**
- * 休眠命令
+ * 运行应用程序
  * @param cons			命令行窗口参数
  * @param fat			fat表
+ * @param cmdline		需要运行的命令
  */
-void cmd_hlt(struct CONSOLE *cons, int *fat) {
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
-	struct FILEINFO *finfo = file_search("HLT.HRB", (struct FILEINFO *)(ADR_DISKIMG + 0x002600), 224);
 	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)ADR_GDT;
-	char *p;
+	struct FILEINFO *finfo;
+	char name[18], *p;
+	int i;
+
+	// 将命令名复制到文件名
+	for (i = 0; i < 13; i++) {
+		// 在ASCII码中，小于空格的一般为控制字符，无实际意义
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0;
+
+	finfo = file_search(name, (struct FILEINFO *)(ADR_DISKIMG + 0x002600), 224);
+	// 如果找不到文件，并且最后不是.开始，加上.hrb以后再查找一遍
+	if (finfo == 0 && name[i - 1] != '.') {
+		name[i] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *)(ADR_DISKIMG + 0x002600), 224);
+	}
 	// 找到文件
-	if (finfo != 0) {
-		p = (char *) memman_alloc_4k(memman, finfo->size);
-		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
-		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
-		// 跳转到指定位置
+	if (finfo !=0) {
+		p = (char *)memman_alloc_4k(memman, finfo->size);
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size, (int)p, AR_CODE32_ER);
 		farcall(0, 1003 * 8);
-//		farjmp(0, 1003 * 8);
-		memman_free_4k(memman, (int) p, finfo->size);
-	}
-	// 没有找到文件
-	else {
-		putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
 		cons_newline(cons);
+		memman_free_4k(memman, (int)p, finfo->size);
+		return 1;
 	}
-	cons_newline(cons);
-	return;
+	return 0;
 }
