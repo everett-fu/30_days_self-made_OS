@@ -244,6 +244,8 @@ _asm_cons_putchar:
     ; 允许中断
     STI
     ; move
+    ; 保存寄存器的值
+    PUSHAD
     PUSH    1
     ; 将EAX高16位置为0，保留低16位，即AX
     AND     EAX, 0xff
@@ -255,6 +257,8 @@ _asm_cons_putchar:
     CALL    _cons_putchar
     ; 移除栈里的数据
     ADD     ESP, 12
+    ; 恢复寄存器的值
+    POPAD
     ; 如果用中断，将要用IRETD返回
     IRETD
 
