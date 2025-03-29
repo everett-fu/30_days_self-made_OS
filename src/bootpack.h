@@ -46,6 +46,9 @@ void store_cr0(int cr0);
 unsigned int memtest_sub(unsigned int start, unsigned int end);
 void load_tr(int tr);
 void farjmp(int eip, int cs);
+void farcall(int eip, int cs);
+void asm_cons_putchar(void);
+void asm_hrb_api(void);
 
 // fifo.c
 struct FIFO32 {
@@ -364,8 +367,24 @@ void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, i
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 
 //console.c
+struct CONSOLE {
+	// 图层
+	struct SHEET *sht;
+	// 光标位置，x，y，颜色
+	int cur_x, cur_y, cur_c;
+};
 void console_task(struct SHEET *sheet, unsigned int memtotal);
-int cons_newline(int cursor_y, struct SHEET *sheet);
+void cons_newline(struct CONSOLE *cons);
+void cons_putchar(struct CONSOLE *cons, char chr, char show);
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal);
+void cmd_free(struct CONSOLE *cons, unsigned int memtotal);
+void cmd_clear(struct CONSOLE *cons);
+void cmd_ls(struct CONSOLE *cons);
+void cmd_cat(struct CONSOLE *cons, int *fat, char *cmdline);
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline);
+void cons_putstr(struct CONSOLE *cons,char *s);
+void cons_putstr_length(struct CONSOLE *cons, char *s, int l);
+void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
 
 //file.c
 struct FILEINFO {
@@ -391,3 +410,4 @@ struct FILEINFO {
 
 void file_readfat(int *fat, unsigned char *img);
 void file_loadfile(int clustno, int size, char *buf, int *fat, char *img);
+struct FILEINFO * file_search(char *name, struct FILEINFO *finfo, int max);

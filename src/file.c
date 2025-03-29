@@ -13,6 +13,8 @@
  * Usage:
  */
 
+#include "bootpack.h"
+
 /**
  * 对磁盘镜像中fat表进行解压
  */
@@ -53,5 +55,64 @@ void file_loadfile(int clustno, int size, char *buf, int *fat, char *img) {
 		clustno = fat[clustno];
 	}
 	return;
+}
 
+/**
+ * 查找文件
+ * @param name		文件名
+ * @param finfo		文件信息
+ * @param max		总文件数量
+ */
+struct FILEINFO * file_search(char *name, struct FILEINFO *finfo, int max) {
+	int x, y;
+	char s[12];
+	// 将字符串S用空格填充
+	for (y = 0; y < 11; y++) {
+		s[y] = ' ';
+	}
+
+	// 将文件名读取到字符串S中，文件名8位，不满的用空格填充，第8位开始为后缀名，后缀名3位
+	for (y = 0, x = 0; name[x] != 0; x++) {
+		// 文件名不可能大于等于11
+		if (y >= 11) {
+			// 没有找到
+			return 0;
+		}
+		if (name[x] == '.' && y <= 8) {
+			y = 8;
+		}
+		else {
+			s[y] = name[x];
+			// 如果是小写字母，将字母转换成大写
+			if (s[y] >= 'a' && s[y] <= 'z') {
+				s[y] -= 0x20;
+			}
+			y++;
+		}
+	}
+	// 查找文件
+	// 与文件格式中一个个对比
+	for (x = 0; x < max; x++) {
+		// 该数据段不含内容
+		if (finfo[x].name[0] == 0x00) {
+			break;
+		}
+		// 是否找到文件，为0则是没有找到，为1则找到了文件
+		char flag = 1;
+		// 为不是目录或者归档文件
+		if ((finfo[x].type & 0x18) == 0) {
+			// 文件名不能匹配上
+			for (y = 0; y < 11; y++) {
+				if (finfo[x].name[y] != s[y]) {
+					flag = 0;
+					break;
+				}
+			}
+			// 可以匹配上，跳出循环，开始显示字符
+			if (flag == 1) {
+				return finfo + x;
+			}
+		}
+	}
+	return 0;
 }

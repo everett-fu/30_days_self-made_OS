@@ -12,8 +12,6 @@
  * Usage:
  */
 
-#include <stdio.h>
-#include <string.h>
 #include "bootpack.h"
 
 void HariMain(void) {

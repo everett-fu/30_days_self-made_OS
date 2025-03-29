@@ -14,9 +14,12 @@
 	GLOBAL _io_load_eflags, _io_store_eflags
 	GLOBAL _load_gdtr, _load_idtr
 	GLOBAL _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
-	EXTERN _inthandler20, _inthandler21, _inthandler27, _inthandler2c
 	GLOBAL _load_cr0, _store_cr0, _memtest_sub
-	GLOBAL _load_tr, _farjmp
+	GLOBAL _load_tr, _farjmp, _asm_cons_putchar
+	GLOBAL _farcall, _asm_hrb_api
+	EXTERN	_inthandler20, _inthandler21
+    EXTERN	_inthandler27, _inthandler2c
+    EXTERN	_cons_putchar, _hrb_api
 
 ; 函数定义
 [SECTION .text]
@@ -235,3 +238,46 @@ _farjmp:                        ; void farjmp(int eip, int cs);
         JMP     FAR [ESP + 4]   ; eip, cs
         ; 任务切换回来的时候要知道现在要返回的函数是哪个
         RET
+
+; 显示单个字节API，应用程序将调用这个函数，然后这个函数调用cons_putchar函数
+_asm_cons_putchar:
+    ; 允许中断
+    STI
+    ; move
+    ; 保存寄存器的值
+    PUSHAD
+    PUSH    1
+    ; 将EAX高16位置为0，保留低16位，即AX
+    AND     EAX, 0xff
+    ; 字节数据
+    PUSH    EAX
+    ; cons地址
+    PUSH    DWORD [0x0fec]
+    ; 跳转到cons_putchar函数
+    CALL    _cons_putchar
+    ; 移除栈里的数据
+    ADD     ESP, 12
+    ; 恢复寄存器的值
+    POPAD
+    ; 如果用中断，将要用IRETD返回
+    IRETD
+
+; 这个函数是为了让汇编程序调用C函数
+; 这个函数的参数是一个32位的地址
+; 这个函数会将这个地址压入栈中，然后调用C函数
+_farcall:           ; void farcall(int eip, int cs);
+    CALL    FAR [ESP + 4]     ; eip, cs
+    RET
+
+;
+_asm_hrb_api:
+    STI
+    ; 用于保存寄存器的值
+    PUSHAD
+    ; 压入参数，edi，esi，ebp，esp，ebx，edx，ecx，eax
+    PUSHAD
+    CALL    _hrb_api
+    ; 跳过压入的参数
+    ADD     ESP, 32
+    POPAD
+    IRETD
