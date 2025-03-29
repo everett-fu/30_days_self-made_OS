@@ -16,6 +16,8 @@
  * - cmd_ls: 显示文件
  * - cmd_cat: 显示文件内容
  * - int cmd_app: 运行应用程序
+ * - cons_putstr: 显示完整字符串
+ * - cons_putstr_length: 显示指定长度字符串
  *
  * Usage:
  */
@@ -244,9 +246,7 @@ void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int mem
 	else if (cmdline[0] != 0) {
 		// 不是命令
 		if (cmd_app(cons, fat, cmdline) == 0) {
-			putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "command not found!", 19);
-			cons_newline(cons);
-			cons_newline(cons);
+			cons_putstr(cons, "Command not found!\n\n");
 		}
 	}
 	return;
@@ -260,14 +260,10 @@ void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int mem
 void cmd_free(struct CONSOLE *cons, unsigned int memtotal) {
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
 	char s[30];
-	sprintf(s, "     total    used    free");
-	putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-	cons_newline(cons);
-
-	sprintf(s, "Mem: %dMB     %dKB  %dKB", memtotal / (1024 * 1024), memtotal / 1024 - memman_total(memman) / 1024 , memman_total(memman) / 1024);
-	putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-	cons_newline(cons);
-	cons_newline(cons);
+	sprintf(s, "\t total\tused\tfree\n");
+	cons_putstr(cons, s);
+	sprintf(s, "Mem: %dMB\t%dKB\t%dKB\n\n", memtotal / (1024 * 1024), memtotal / 1024 - memman_total(memman) / 1024 , memman_total(memman) / 1024);
+	cons_putstr(cons, s);
 	return;
 }
 
@@ -306,15 +302,14 @@ void cmd_ls(struct CONSOLE *cons) {
 		else if (finfo[x].name[0] != 0xe5) {
 			// 不是归档文件或者目录
 			if ((finfo[x].type & 0x18) == 0)  {
-				sprintf(s, "filename.ext %7d", finfo[x].size);
+				sprintf(s, "filename.ext %7d\n", finfo[x].size);
 				for (y = 0; y < 8; y++) {
 					s[y] = finfo[x].name[y];
 				}
 				s[9] = finfo[x].ext[0];
 				s[10] = finfo[x].ext[1];
 				s[11] = finfo[x].ext[2];
-				putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, s, 30);
-				cons_newline(cons);
+				cons_putstr(cons, s);
 			}
 		}
 	}
@@ -332,22 +327,18 @@ void cmd_cat(struct CONSOLE *cons, int *fat, char *cmdline) {
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
 	struct FILEINFO *finfo = file_search(cmdline + 4, (struct FILEINFO *)(ADR_DISKIMG + 0x002600), 224);
 	char *p;
-	int i;
 	// 找到文件
 	if (finfo != 0) {
 		p = (char *) memman_alloc_4k(memman, finfo->size);
 		// 加载文件
 		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
-		for (i = 0; i < finfo->size; i++) {
-			cons_putchar(cons, p[i], 1);
-		}
+		cons_putstr_length(cons, p, finfo->size);
 		// 释放内存
 		memman_free_4k(memman, (int)p, finfo->size);
 	}
 	// 没有找到文件
 	else {
-		putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
-		cons_newline(cons);
+		cons_putstr(cons, "File not found.\n");
 	}
 	cons_newline(cons);
 	return;
@@ -398,4 +389,30 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 		return 1;
 	}
 	return 0;
+}
+
+/**
+ * 显示末尾为0的完整字符串
+ * @param cons		命令行窗口参数
+ * @param s			字符串
+ */
+void cons_putstr(struct CONSOLE *cons,char *s) {
+	for (; *s != 0; s++) {
+		cons_putchar(cons, *s, 1);
+	}
+	return;
+}
+
+/**
+ * 显示指定长度的字符串
+ * @param cons		命令行窗口参数
+ * @param s			字符串
+ * @param l			需要显示字符的长度
+ */
+void cons_putstr_length(struct CONSOLE *cons, char *s, int l) {
+	int i;
+	for (i = 0; i < l; i++) {
+		cons_putchar(cons, s[i], 1);
+	}
+	return;
 }
