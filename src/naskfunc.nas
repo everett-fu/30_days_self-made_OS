@@ -16,10 +16,10 @@
 	GLOBAL _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
 	GLOBAL _load_cr0, _store_cr0, _memtest_sub
 	GLOBAL _load_tr, _farjmp, _asm_cons_putchar
-	GLOBAL _farcall
+	GLOBAL _farcall, _asm_hrb_api
 	EXTERN	_inthandler20, _inthandler21
     EXTERN	_inthandler27, _inthandler2c
-    EXTERN	_cons_putchar
+    EXTERN	_cons_putchar, _hrb_api
 
 ; 函数定义
 [SECTION .text]
@@ -268,3 +268,16 @@ _asm_cons_putchar:
 _farcall:           ; void farcall(int eip, int cs);
     CALL    FAR [ESP + 4]     ; eip, cs
     RET
+
+;
+_asm_hrb_api:
+    STI
+    ; 用于保存寄存器的值
+    PUSHAD
+    ; 压入参数，edi，esi，ebp，esp，ebx，edx，ecx，eax
+    PUSHAD
+    CALL    _hrb_api
+    ; 跳过压入的参数
+    ADD     ESP, 32
+    POPAD
+    IRETD

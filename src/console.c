@@ -416,3 +416,23 @@ void cons_putstr_length(struct CONSOLE *cons, char *s, int l) {
 	}
 	return;
 }
+
+void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax) {
+	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0x0fec);
+	// 显示单个字符
+	if (edx == 1) {
+		// AL=字符编码
+		cons_putchar(cons, eax & 0xff, 1);
+	}
+	// 显示末尾为0的完整字符串
+	else if (edx == 2) {
+		// EBX=字符串地址
+		cons_putstr(cons, (char *)ebx);
+	}
+	// 显示指定长的的字符串
+	else if (edx == 3) {
+		// EBX=字符串地址，ECX=字符串长度
+		cons_putstr_length(cons, (char *)ebx, ecx);
+	}
+	return;
+}
