@@ -58,20 +58,40 @@ $(BUILDPATH)bootpack.bim : $(OBJS_BOOTPACK) Makefile
 $(BUILDPATH)bootpack.hrb : $(BUILDPATH)bootpack.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)bootpack.bim $(BUILDPATH)bootpack.hrb 0
 
-$(BUILDPATH)hello.hrb : hello.nas Makefile
-	$(NASK) hello.nas $(BUILDPATH)hello.hrb $(BUILDPATH)hello.lst
-
-
 $(BUILDPATH)haribote.sys : $(BUILDPATH)asmhead.bin $(BUILDPATH)bootpack.hrb Makefile
 	copy /B $(BUILDPATH_W)asmhead.bin+$(BUILDPATH_W)bootpack.hrb $(BUILDPATH_W)haribote.sys
 
-$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb Makefile
+$(BUILDPATH)hello.hrb : hello.nas Makefile
+	$(NASK) hello.nas $(BUILDPATH)hello.hrb $(BUILDPATH)hello.lst
+
+$(BUILDPATH)hello2.hrb : hello2.nas Makefile
+	$(NASK) hello2.nas $(BUILDPATH)hello2.hrb $(BUILDPATH)hello2.lst
+
+$(BUILDPATH)a_nask.obj : a_nask.nas Makefile
+	$(NASK) a_nask.nas $(BUILDPATH)a_nask.obj $(BUILDPATH)a_nask.lst
+
+$(BUILDPATH)a.bim : $(BUILDPATH)a.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)a.bim map:$(BUILDPATH)a.map $(BUILDPATH)a.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)a.hrb : $(BUILDPATH)a.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)a.bim $(BUILDPATH)a.hrb 0
+
+$(BUILDPATH)crack1.bim : $(BUILDPATH)crack1.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)crack1.bim map:$(BUILDPATH)crack1.map $(BUILDPATH)crack1.obj
+
+$(BUILDPATH)crack1.hrb : $(BUILDPATH)crack1.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)crack1.bim $(BUILDPATH)crack1.hrb 0
+
+$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb $(BUILDPATH)crack1.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
 		copy from:ipl10.nas to:@: \
 		copy from:make.bat to:@: \
 		copy from:$(BUILDPATH)hello.hrb to:@: \
+		copy from:$(BUILDPATH)hello2.hrb to:@: \
+		copy from:$(BUILDPATH)a.hrb to:@: \
+		copy from:$(BUILDPATH)crack1.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
