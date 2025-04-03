@@ -13,11 +13,11 @@
 	GLOBAL _io_out8, _io_out16, _io_out32
 	GLOBAL _io_load_eflags, _io_store_eflags
 	GLOBAL _load_gdtr, _load_idtr
-	GLOBAL _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
+	GLOBAL _asm_inthandler0d, _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
 	GLOBAL _load_cr0, _store_cr0, _memtest_sub
 	GLOBAL _load_tr, _farjmp, _asm_cons_putchar
-	GLOBAL _farcall, _asm_hrb_api
-	EXTERN	_inthandler20, _inthandler21
+	GLOBAL _farcall, _asm_hrb_api, _start_app
+	EXTERN	_inthandler0d, _inthandler20, _inthandler21
     EXTERN	_inthandler27, _inthandler2c
     EXTERN	_cons_putchar, _hrb_api
 
@@ -113,18 +113,41 @@ _load_idtr:												; void load_idtr(int limit, int addr);
 	LIDT [ESP+6]
 	RET
 
+; 一般异常中断处理程序
+_asm_inthandler0d:
+	STI
+	PUSH	ES
+	PUSH	DS
+	PUSHAD
+	MOV     EAX, ESP
+	; 保存中断时的ESP
+	PUSH	EAX
+	MOV		AX,SS
+	MOV		DS,AX
+	MOV		ES,AX
+	CALL	_inthandler0d
+	CMP     EAX, 0
+	JNE     end_app
+	POP     EAX
+	POPAD
+	POP		DS
+	POP		ES
+	; 在INT 0x0d中需要这句
+	ADD		ESP, 4
+	IRETD
+
 ; 计时器中断处理程序
 _asm_inthandler20:          ; void inthandler20(int *esp);
 	PUSH	ES
 	PUSH	DS
 	PUSHAD
-	MOV		EAX,ESP
+	MOV     EAX, ESP
 	PUSH	EAX
 	MOV		AX,SS
 	MOV		DS,AX
 	MOV		ES,AX
 	CALL	_inthandler20
-	POP		EAX
+	POP     EAX
 	POPAD
 	POP		DS
 	POP		ES
@@ -132,53 +155,53 @@ _asm_inthandler20:          ; void inthandler20(int *esp);
 
 ; 键盘中断处理程序
 _asm_inthandler21:
-	PUSH	ES
-	PUSH	DS
-	PUSHAD
-	MOV		EAX,ESP
-	PUSH	EAX
-	MOV		AX,SS
-	MOV		DS,AX
-	MOV		ES,AX
-	CALL	_inthandler21
-	POP		EAX
-	POPAD
-	POP		DS
-	POP		ES
-	IRETD
+    PUSH	ES
+    PUSH	DS
+    PUSHAD
+	MOV     EAX, ESP
+    PUSH	EAX
+    MOV		AX,SS
+    MOV		DS,AX
+    MOV		ES,AX
+    CALL	_inthandler21
+	POP     EAX
+    POPAD
+    POP		DS
+    POP		ES
+    IRETD
 
 _asm_inthandler27:
-	PUSH	ES
-	PUSH	DS
-	PUSHAD
-	MOV		EAX,ESP
-	PUSH	EAX
-	MOV		AX,SS
-	MOV		DS,AX
-	MOV		ES,AX
-	CALL	_inthandler27
-	POP		EAX
-	POPAD
-	POP		DS
-	POP		ES
-	IRETD
+    PUSH	ES
+    PUSH	DS
+    PUSHAD
+	MOV     EAX, ESP
+    PUSH	EAX
+    MOV		AX,SS
+    MOV		DS,AX
+    MOV		ES,AX
+    CALL	_inthandler27
+	POP     EAX
+    POPAD
+    POP		DS
+    POP		ES
+    IRETD
 
 ; 鼠标中断处理程序
 _asm_inthandler2c:
-	PUSH	ES
-	PUSH	DS
-	PUSHAD
-	MOV		EAX,ESP
-	PUSH	EAX
-	MOV		AX,SS
-	MOV		DS,AX
-	MOV		ES,AX
-	CALL	_inthandler2c
-	POP		EAX
-	POPAD
-	POP		DS
-	POP		ES
-	IRETD
+    PUSH	ES
+    PUSH	DS
+    PUSHAD
+	MOV     EAX, ESP
+    PUSH	EAX
+    MOV		AX,SS
+    MOV		DS,AX
+    MOV		ES,AX
+    CALL	_inthandler2c
+	POP     EAX
+    POPAD
+    POP		DS
+    POP		ES
+    IRETD
 
 ; 加载CR0寄存器
 _load_cr0:						; int load_cr0(void);
@@ -269,15 +292,76 @@ _farcall:           ; void farcall(int eip, int cs);
     CALL    FAR [ESP + 4]     ; eip, cs
     RET
 
-;
+; 中断处理程序，发生40中断时调用，用于调用hrb_api函数
 _asm_hrb_api:
     STI
+    PUSH    DS
+    PUSH    ES
     ; 用于保存寄存器的值
     PUSHAD
-    ; 压入参数，edi，esi，ebp，esp，ebx，edx，ecx，eax
+    ; 用于向hrb_api传值的PUSH
     PUSHAD
+    MOV     AX, SS
+    ; 将OS用的段也放入DS和ES寄存器中
+    MOV     DS, AX
+    MOV     ES, AX
+
+    ; 调用系统API
     CALL    _hrb_api
-    ; 跳过压入的参数
+    ; 判断是否为0，非0时结束应用程序，为0的时候继续运行应用程序
+    ; 因为我们不是使用far-CALL来启动应用程序，无法使用RETF来结束，因此我们需要制作一个用于结束程序的API
+    ; 当非0的时候当作tss.esp0的地址
+    CMP     EAX, 0
+    JNE     end_app
+    ; 移除用于向hrb_api传值的栈
     ADD     ESP, 32
     POPAD
+    POP     ES
+    POP     DS
     IRETD
+
+end_app:
+    MOV     ESP, [EAX]
+    POPAD
+    ; 返回cmd_app
+    RET
+
+
+; 切换到应用程序，eip，cs，esp，ds为应用程序的参数
+_start_app:         ; void start_app(int eip, int cs, int esp, int ds, int *tss_esp0)
+    ; 压入全部的寄存器
+    PUSHAD
+    ; 程序在运行之前会压入四个参数，分别为eip，cs，esp，ds，PUSHAD会压入32个字节的寄存器，esp会减4再减32，所以esp+36相当于eip参数，+8相当于cs参数
+    ; 应用程序EIP
+    MOV     EAX, [ESP + 36]
+    ; 应用程序CS
+    MOV     ECX, [ESP + 40]
+    ; 应用程序ESP
+    MOV     EDX, [ESP + 44]
+    ; 应用程序DS/SS
+    MOV     EBX, [ESP + 48]
+    ; tss.esp0的地址
+    MOV		EBP, [ESP + 52]
+    ; 操作系统现在的ESP
+    MOV     [EBP], ESP
+    ; 操作系统现在的SS
+    MOV		[EBP + 4], SS
+    ; 将bx的值赋给段寄存器，主要为es与ds，其余的fs，gs都只是保险起见
+    MOV     ES, BX
+    MOV     DS, BX
+    MOV     FS, BX
+    MOV     GS, BX
+
+; 调整栈，以便可以使用RETF跳转到应用程序
+    OR		ECX, 3
+    OR		EBX, 3
+    ; 应用程序SS
+    PUSH	EBX
+    ; 应用程序ESP
+    PUSH	EDX
+    ; 应用程序CS
+    PUSH	ECX
+    ; 应用程序EIP
+    PUSH	EAX
+    RETF
+; 因为使用RETF，应用程序无法返回到这个地方

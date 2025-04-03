@@ -355,7 +355,8 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
 	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)ADR_GDT;
 	struct FILEINFO *finfo;
-	char name[18], *p;
+	struct TASK *task = task_now();
+	char name[18], *p, *q;
 	int i;
 
 	// 将命令名复制到文件名
@@ -381,11 +382,25 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 	// 找到文件
 	if (finfo !=0) {
 		p = (char *)memman_alloc_4k(memman, finfo->size);
+		q = (char *)memman_alloc_4k(memman, 64 * 1024);
+		*((int *)0xfe8) = (int)p;
 		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
-		set_segmdesc(gdt + 1003, finfo->size, (int)p, AR_CODE32_ER);
-		farcall(0, 1003 * 8);
-		cons_newline(cons);
+		//1003作为应用程序代码段，1004作为数据段
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
+		set_segmdesc(gdt + 1004, 64 * 1024 - 1, (int)q, AR_DATA32_RW + 0x60);
+		// 只要通过bim2hrb生成的hrb文件，第4~7字节一定为Hari
+		if (finfo->size >= 8 && strncmp(p + 4, "Hari", 4) == 0) {
+			p[0] = 0xe8;
+			p[1] = 0x16;
+			p[2] = 0x00;
+			p[3] = 0x00;
+			p[4] = 0x00;
+			p[5] = 0xcb;
+		}
+		start_app(0, 1003 * 8, 64 * 1024, 1004 * 8, &(task->tss.esp0));
 		memman_free_4k(memman, (int)p, finfo->size);
+		memman_free_4k(memman, (int)q, 64 * 1024);
+		cons_newline(cons);
 		return 1;
 	}
 	return 0;
@@ -417,7 +432,21 @@ void cons_putstr_length(struct CONSOLE *cons, char *s, int l) {
 	return;
 }
 
-void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax) {
+/**
+ * 字符显示api函数，给出不同的参数调用不同的API
+ * @param edi		寄存器edi
+ * @param esi		寄存器esi
+ * @param ebp		寄存器ebp
+ * @param esp		寄存器esp
+ * @param ebx		字符串地址
+ * @param edx		功能号
+ * @param ecx		字符长度
+ * @param eax		字符编码
+ * @return 			地址值
+ */
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax) {
+	int cs_base = *((int*)0xfe8);
+	struct TASK *task = task_now();
 	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0x0fec);
 	// 显示单个字符
 	if (edx == 1) {
@@ -427,12 +456,29 @@ void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	// 显示末尾为0的完整字符串
 	else if (edx == 2) {
 		// EBX=字符串地址
-		cons_putstr(cons, (char *)ebx);
+		cons_putstr(cons, (char *)ebx + cs_base);
+
 	}
 	// 显示指定长的的字符串
 	else if (edx == 3) {
 		// EBX=字符串地址，ECX=字符串长度
-		cons_putstr_length(cons, (char *)ebx, ecx);
+		cons_putstr_length(cons, (char *)ebx + cs_base, ecx);
 	}
-	return;
+	// 结束应用程序
+	else if (edx == 4) {
+		return &(task->tss.esp0);
+	}
+	return 0;
+}
+
+/**
+ * 一般异常处理程序
+ * @param esp		程序要还原的esp地址
+ * @return			是否执行成功
+ */
+int *inthandler0d(int *esp) {
+	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0xfec);
+	struct TASK *task = task_now();
+	cons_putstr(cons, "\nINT 0D:\n General Protected EXception.\n");
+	return &(task->tss.esp0);
 }
