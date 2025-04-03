@@ -76,13 +76,16 @@ $(BUILDPATH)a.bim : $(BUILDPATH)a.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)a.hrb : $(BUILDPATH)a.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)a.bim $(BUILDPATH)a.hrb 0
 
-$(BUILDPATH)crack1.bim : $(BUILDPATH)crack1.obj Makefile
-	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)crack1.bim map:$(BUILDPATH)crack1.map $(BUILDPATH)crack1.obj
+$(BUILDPATH)crack1.bim : $(BUILDPATH)crack1.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)crack1.bim map:$(BUILDPATH)crack1.map $(BUILDPATH)crack1.obj $(BUILDPATH)a_nask.obj
 
 $(BUILDPATH)crack1.hrb : $(BUILDPATH)crack1.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)crack1.bim $(BUILDPATH)crack1.hrb 0
 
-$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb $(BUILDPATH)crack1.hrb Makefile
+$(BUILDPATH)crack2.hrb : crack2.nas Makefile
+	$(NASK) crack2.nas $(BUILDPATH)crack2.hrb $(BUILDPATH)crack2.lst
+
+$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb $(BUILDPATH)crack1.hrb $(BUILDPATH)crack2.hrb  Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
@@ -92,6 +95,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)hello2.hrb to:@: \
 		copy from:$(BUILDPATH)a.hrb to:@: \
 		copy from:$(BUILDPATH)crack1.hrb to:@: \
+		copy from:$(BUILDPATH)crack2.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ

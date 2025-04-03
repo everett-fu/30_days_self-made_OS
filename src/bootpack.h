@@ -51,7 +51,7 @@ void farcall(int eip, int cs);
 void asm_cons_putchar(void);
 void asm_hrb_api(void);
 // 应用程序的eip，cs，esp，ds
-void start_app(int eip, int cs, int esp, int ds);
+void start_app(int eip, int cs, int esp, int ds, int *tss_esp0);
 
 // fifo.c
 struct FIFO32 {
@@ -387,8 +387,8 @@ void cmd_cat(struct CONSOLE *cons, int *fat, char *cmdline);
 int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline);
 void cons_putstr(struct CONSOLE *cons,char *s);
 void cons_putstr_length(struct CONSOLE *cons, char *s, int l);
-void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
-int inthandler0d(int *esp);
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
+int *inthandler0d(int *esp);
 
 //file.c
 struct FILEINFO {
