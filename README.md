@@ -12,7 +12,7 @@ Additionally, HaribOS was written a long time ago, using floppy disks + MBR + BI
 
 This project will rewrite parts of the original code using NASM + GCC + QEMU and replace some algorithms with more modern implementations. I hope this rewrite can provide some help to future developers. Therefore, I named this project *NubulaOS*, meaning "nebula," symbolizing clearing away the fog and offering guidance for those who follow.
 
-The project will first complete Hideki Kawai's original code and then proceed with refactoring, rewriting, and optimization. Currently, the content from Day 0 to Day 20 has been completed.
+The project will first complete Hideki Kawai's original code and then proceed with refactoring, rewriting, and optimization. Currently, the content from Day 0 to Day 21 has been completed.
 
 ## Project Features
 + Uses GCC and NASM as the toolchain, supporting cross-platform development
@@ -66,7 +66,7 @@ The specific usage process is as follows:
 + [X] Day 18: Command Line Commands
 + [X] Day 19: Applications
 + [X] Day 20: API
-+ [ ] Day 21: OS Protection
++ [X] Day 21: OS Protection
 + [ ] Day 22: C Applications (Converted to ELF Format)
 + [ ] Day 23: Application Graphics Processing
 + [ ] Day 24: Window Operations
