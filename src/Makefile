@@ -76,7 +76,13 @@ $(BUILDPATH)a.bim : $(BUILDPATH)a.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)a.hrb : $(BUILDPATH)a.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)a.bim $(BUILDPATH)a.hrb 0
 
-$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb Makefile
+$(BUILDPATH)bug1.bim : $(BUILDPATH)bug1.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)bug1.bim map:$(BUILDPATH)bug1.map $(BUILDPATH)bug1.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)bug1.hrb : $(BUILDPATH)bug1.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)bug1.bim $(BUILDPATH)bug1.hrb 0
+
+$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
@@ -85,6 +91,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)hello.hrb to:@: \
 		copy from:$(BUILDPATH)hello2.hrb to:@: \
 		copy from:$(BUILDPATH)a.hrb to:@: \
+		copy from:$(BUILDPATH)bug1.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
