@@ -13,11 +13,11 @@
 	GLOBAL _io_out8, _io_out16, _io_out32
 	GLOBAL _io_load_eflags, _io_store_eflags
 	GLOBAL _load_gdtr, _load_idtr
-	GLOBAL _asm_inthandler0d, _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
+	GLOBAL _asm_inthandler0c, _asm_inthandler0d, _asm_inthandler20, _asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
 	GLOBAL _load_cr0, _store_cr0, _memtest_sub
 	GLOBAL _load_tr, _farjmp, _asm_cons_putchar
 	GLOBAL _farcall, _asm_hrb_api, _start_app
-	EXTERN	_inthandler0d, _inthandler20, _inthandler21
+	EXTERN	_inthandler0c, _inthandler0d, _inthandler20, _inthandler21
     EXTERN	_inthandler27, _inthandler2c
     EXTERN	_cons_putchar, _hrb_api
 
@@ -112,6 +112,27 @@ _load_idtr:												; void load_idtr(int limit, int addr);
 	MOV [ESP+6],AX
 	LIDT [ESP+6]
 	RET
+
+; 栈异常处理
+_asm_inthandler0c:
+    STI
+    PUSH    ES
+    PUSH    DS
+    PUSHAD
+    MOV     EAX, ESP
+    PUSH    EAX
+    MOV     AX,SS
+    MOV     DS,AX
+    MOV     ES,AX
+    CALL    _inthandler0c
+    CMP     EAX, 0
+    JNE     end_app
+    POP     EAX
+    POPAD
+    POP     DS
+    POP     ES
+    ADD     ESP, 4
+    IRETD
 
 ; 一般异常中断处理程序
 _asm_inthandler0d:

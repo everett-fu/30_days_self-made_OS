@@ -479,6 +479,42 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 int *inthandler0d(int *esp) {
 	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0xfec);
 	struct TASK *task = task_now();
+	char s[30];
 	cons_putstr(cons, "\nINT 0D:\n General Protected EXception.\n");
+	sprintf(s, "EIP = %08x\n", esp[11]);
+	cons_putstr(cons, s);
+	return &(task->tss.esp0);
+}
+
+/**
+ * 栈溢出处理程序
+ * @param esp		程序要还原的esp地址
+ * @return			是否执行成功
+ */
+int *inthandler0c(int *esp) {
+	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0xfec);
+	struct TASK *task = task_now();
+	char s[30];
+	cons_putstr(cons, "\nINT 0C:\n Stack EXception.\n");
+	/*
+	 * esp[0]:EDI
+	 * esp[1]:ESI
+	 * esp[2]:EBP
+	 * esp[3]:ESP
+	 * esp[4]:EBX
+	 * esp[5]:EDX
+	 * esp[6]:ECX
+	 * esp[7]:EAX
+	 * esp[8]:DS
+	 * esp[9]:ES
+	 * esp[10]:错误编号
+	 * esp[11]:EIP
+	 * esp[12]:CS
+	 * esp[13]:EFLAGS
+	 * esp[14]:应用程序ESP
+	 * esp[15]:应用程序SS
+	 */
+	sprintf(s, "EIP = %08x\n", esp[11]);
+	cons_putstr(cons, s);
 	return &(task->tss.esp0);
 }

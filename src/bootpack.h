@@ -37,6 +37,7 @@ int io_load_eflags(void);
 void io_store_eflags(int eflags);
 void load_gdtr(int limit, int addr);
 void load_idtr(int limit, int addr);
+void asm_inthandler0c(void);
 void asm_inthandler0d(void);
 void asm_inthandler20(void);
 void asm_inthandler21(void);
@@ -389,6 +390,7 @@ void cons_putstr(struct CONSOLE *cons,char *s);
 void cons_putstr_length(struct CONSOLE *cons, char *s, int l);
 int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
 int *inthandler0d(int *esp);
+int *inthandler0c(int *esp);
 
 //file.c
 struct FILEINFO {
