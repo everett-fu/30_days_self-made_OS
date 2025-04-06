@@ -53,6 +53,7 @@ void asm_cons_putchar(void);
 void asm_hrb_api(void);
 // 应用程序的eip，cs，esp，ds
 void start_app(int eip, int cs, int esp, int ds, int *tss_esp0);
+void asm_end_app(void);
 
 // fifo.c
 struct FIFO32 {
