@@ -108,6 +108,7 @@ void HariMain(void) {
 
 	// 初始化图层控制
 	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	*((int *)0x0fe4) = (int)shtctl;
 
 	// 背景图层
 	// 创建背景图层
@@ -166,6 +167,7 @@ void HariMain(void) {
 	*((int *)(task_cons->tss.esp + 4)) = (int)sht_cons;
 	*((int *)(task_cons->tss.esp + 8)) = memtotal;
 	task_run(task_cons, 2, 2);
+	struct CONSOLE *cons;
 
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
@@ -326,6 +328,15 @@ void HariMain(void) {
 						if (key_to == 1) {
 							fifo32_put(&task_cons->fifo, 10 + 256);
 						}
+					}
+					// shift+f1中止应用程序
+					else if (i == 256 + 0x3b && key_shift != 0 && task_cons->tss.ss0 != 0) {
+						cons = (struct CONSOLE *)*((int *)0xfec);
+						cons_putstr(cons, "\nBreak(key):\n");
+						io_cli();
+						task_cons->tss.eax = (int)&task_cons->tss.esp0;
+						task_cons->tss.eip = (int)asm_end_app;
+						io_sti();
 					}
 				}
 				// 重新显示光标

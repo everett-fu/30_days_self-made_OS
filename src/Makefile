@@ -61,12 +61,6 @@ $(BUILDPATH)bootpack.hrb : $(BUILDPATH)bootpack.bim Makefile
 $(BUILDPATH)haribote.sys : $(BUILDPATH)asmhead.bin $(BUILDPATH)bootpack.hrb Makefile
 	copy /B $(BUILDPATH_W)asmhead.bin+$(BUILDPATH_W)bootpack.hrb $(BUILDPATH_W)haribote.sys
 
-$(BUILDPATH)hello.hrb : hello.nas Makefile
-	$(NASK) hello.nas $(BUILDPATH)hello.hrb $(BUILDPATH)hello.lst
-
-$(BUILDPATH)hello2.hrb : hello2.nas Makefile
-	$(NASK) hello2.nas $(BUILDPATH)hello2.hrb $(BUILDPATH)hello2.lst
-
 $(BUILDPATH)a_nask.obj : a_nask.nas Makefile
 	$(NASK) a_nask.nas $(BUILDPATH)a_nask.obj $(BUILDPATH)a_nask.lst
 
@@ -76,16 +70,67 @@ $(BUILDPATH)a.bim : $(BUILDPATH)a.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)a.hrb : $(BUILDPATH)a.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)a.bim $(BUILDPATH)a.hrb 0
 
-$(BUILDPATH)crack1.bim : $(BUILDPATH)crack1.obj $(BUILDPATH)a_nask.obj Makefile
-	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)crack1.bim map:$(BUILDPATH)crack1.map $(BUILDPATH)crack1.obj $(BUILDPATH)a_nask.obj
+$(BUILDPATH)bug1.bim : $(BUILDPATH)bug1.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)bug1.bim map:$(BUILDPATH)bug1.map $(BUILDPATH)bug1.obj $(BUILDPATH)a_nask.obj
 
-$(BUILDPATH)crack1.hrb : $(BUILDPATH)crack1.bim Makefile
-	$(BIM2HRB) $(BUILDPATH)crack1.bim $(BUILDPATH)crack1.hrb 0
+$(BUILDPATH)bug1.hrb : $(BUILDPATH)bug1.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)bug1.bim $(BUILDPATH)bug1.hrb 0
 
-$(BUILDPATH)crack2.hrb : crack2.nas Makefile
-	$(NASK) crack2.nas $(BUILDPATH)crack2.hrb $(BUILDPATH)crack2.lst
+$(BUILDPATH)bug2.bim : $(BUILDPATH)bug2.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)bug2.bim map:$(BUILDPATH)bug2.map $(BUILDPATH)bug2.obj
 
-$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb $(BUILDPATH)crack1.hrb $(BUILDPATH)crack2.hrb  Makefile
+$(BUILDPATH)bug2.hrb : $(BUILDPATH)bug2.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)bug2.bim $(BUILDPATH)bug2.hrb 0
+
+$(BUILDPATH)%.obj : %.nas Makefile
+	$(NASK) $< $@ $(BUILDPATH)$*.lst
+
+$(BUILDPATH)hello.bim : $(BUILDPATH)hello.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello.bim map:$(BUILDPATH)hello.map $(BUILDPATH)hello.obj
+
+$(BUILDPATH)hello.hrb : $(BUILDPATH)hello.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello.bim $(BUILDPATH)hello.hrb 0
+
+$(BUILDPATH)hello2.bim : $(BUILDPATH)hello2.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello2.bim map:$(BUILDPATH)hello2.map $(BUILDPATH)hello2.obj
+
+$(BUILDPATH)hello2.hrb : $(BUILDPATH)hello2.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello2.bim $(BUILDPATH)hello2.hrb 0
+
+$(BUILDPATH)hello3.bim : $(BUILDPATH)hello3.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello3.bim map:$(BUILDPATH)hello3.map $(BUILDPATH)hello3.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)hello3.hrb : $(BUILDPATH)hello3.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello3.bim $(BUILDPATH)hello3.hrb 0
+
+$(BUILDPATH)hello4.bim : $(BUILDPATH)hello4.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello4.bim map:$(BUILDPATH)hello4.map $(BUILDPATH)hello4.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)hello4.hrb : $(BUILDPATH)hello4.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello4.bim $(BUILDPATH)hello4.hrb 0
+
+$(BUILDPATH)hello5.bim : $(BUILDPATH)hello5.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello5.bim stack:1k map:$(BUILDPATH)hello5.map $(BUILDPATH)hello5.obj
+
+$(BUILDPATH)hello5.hrb : $(BUILDPATH)hello5.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello5.bim $(BUILDPATH)hello5.hrb 0
+
+$(BUILDPATH)winhelo.bim : $(BUILDPATH)winhelo.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)winhelo.bim stack:1k map:$(BUILDPATH)winhelo.map $(BUILDPATH)winhelo.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)winhelo.hrb : $(BUILDPATH)winhelo.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)winhelo.bim $(BUILDPATH)winhelo.hrb 0
+
+$(BUILDPATH)winhelo2.bim : $(BUILDPATH)winhelo2.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)winhelo2.bim stack:1k map:$(BUILDPATH)winhelo2.map $(BUILDPATH)winhelo2.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)winhelo2.hrb : $(BUILDPATH)winhelo2.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)winhelo2.bim $(BUILDPATH)winhelo2.hrb 0
+
+$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
+							$(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb \
+							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb $(BUILDPATH)winhelo.hrb $(BUILDPATH)winhelo2.hrb \
+							Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
@@ -94,8 +139,13 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)hello.hrb to:@: \
 		copy from:$(BUILDPATH)hello2.hrb to:@: \
 		copy from:$(BUILDPATH)a.hrb to:@: \
-		copy from:$(BUILDPATH)crack1.hrb to:@: \
-		copy from:$(BUILDPATH)crack2.hrb to:@: \
+		copy from:$(BUILDPATH)bug1.hrb to:@: \
+		copy from:$(BUILDPATH)bug2.hrb to:@: \
+		copy from:$(BUILDPATH)hello3.hrb to:@: \
+		copy from:$(BUILDPATH)hello4.hrb to:@: \
+		copy from:$(BUILDPATH)hello5.hrb to:@: \
+		copy from:$(BUILDPATH)winhelo.hrb to:@: \
+		copy from:$(BUILDPATH)winhelo2.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
@@ -125,9 +175,8 @@ clean :
 	-$(DEL) $(BUILDPATH_W)*.lst
 	-$(DEL) $(BUILDPATH_W)*.obj
 	-$(DEL) $(BUILDPATH_W)*.hrb
-	-$(DEL) $(BUILDPATH_W)bootpack.map
-	-$(DEL) $(BUILDPATH_W)bootpack.bim
-	-$(DEL) $(BUILDPATH_W)bootpack.hrb
+	-$(DEL) $(BUILDPATH_W)*.map
+	-$(DEL) $(BUILDPATH_W)*.bim
 	-$(DEL) $(BUILDPATH_W)haribote.sys
 	-$(DEL) ..\images\haribote.img
 
