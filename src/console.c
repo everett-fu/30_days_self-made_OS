@@ -447,20 +447,27 @@ void cons_putstr_length(struct CONSOLE *cons, char *s, int l) {
 
 /**
  * 字符显示api函数，给出不同的参数调用不同的API
- * @param edi		寄存器edi
- * @param esi		寄存器esi
+ * @param edi		图层高度
+ * @param esi		图层宽度
  * @param ebp		寄存器ebp
  * @param esp		寄存器esp
- * @param ebx		字符串地址
+ * @param ebx		字符串地址，图层缓冲区
  * @param edx		功能号
- * @param ecx		字符长度
- * @param eax		字符编码
+ * @param ecx		字符长度，窗口标题
+ * @param eax		字符编码，透明色
  * @return 			地址值
  */
 int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax) {
-	int cs_base = *((int*)0xfe8);
+	int ds_base = *((int*)0xfe8);
 	struct TASK *task = task_now();
 	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0x0fec);
+	struct SHTCTL *shtctl = (struct SHT_CTL *)*((int *)0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;
+	/*
+	 * reg[0] = edi, reg[]1] = esi, reg[2] = ebp, reg[3] = esp
+	 * reg[4] = ebx, reg[5] = edx, reg[6] = ecx, reg[7] = eax
+	 */
 	char s[30];
 	// 显示单个字符
 	if (edx == 1) {
@@ -470,18 +477,28 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	// 显示末尾为0的完整字符串
 	else if (edx == 2) {
 		// EBX=字符串地址
-		cons_putstr(cons, (char *)ebx + cs_base);
+		cons_putstr(cons, (char *)ebx + ds_base);
 		sprintf(s, "%08X\n", ebx);
 		cons_putstr(cons, s);
 	}
 	// 显示指定长的的字符串
 	else if (edx == 3) {
 		// EBX=字符串地址，ECX=字符串长度
-		cons_putstr_length(cons, (char *)ebx + cs_base, ecx);
+		cons_putstr_length(cons, (char *)ebx + ds_base, ecx);
 	}
 	// 结束应用程序
 	else if (edx == 4) {
 		return &(task->tss.esp0);
+	}
+	// 创建窗口
+	else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *)ebx + ds_base, esi, edi, eax);
+		make_window8((char *)ebx + ds_base, esi, edi, (char *)ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);
+		reg[7] = (int)sht;
+
 	}
 	return 0;
 }

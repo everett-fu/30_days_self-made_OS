@@ -108,6 +108,7 @@ void HariMain(void) {
 
 	// 初始化图层控制
 	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	*((int *)0x0fe4) = (int)shtctl;
 
 	// 背景图层
 	// 创建背景图层

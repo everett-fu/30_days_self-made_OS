@@ -7,7 +7,7 @@
 ; 制作目标文件的文件名
 [FILE "a_nask.nas"]
 
-    GLOBAL _api_putchar, _api_end, _api_putstr
+    GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin
 
 [SECTION .text]
 ; 显示字符
@@ -29,4 +29,21 @@ _api_putstr:        ; void api_putstr(char *str)
     MOV     EBX, [ESP + 8]
     INT     0x40
     POP     EBX
+    RET
+
+; 显示窗口
+_api_openwin:
+    PUSH    EDI
+    PUSH    ESI
+    PUSH    EBX
+    MOV     EDX, 5
+    MOV     EBX, [ESP + 16]
+    MOV     ESI, [ESP + 20]
+    MOV     EDI, [ESP + 24]
+    MOV     EAX, [ESP + 28]
+    MOV     ECX, [ESP + 32]
+    INT     0x40
+    POP     EBX
+    POP     ESi
+    POP     EDI
     RET

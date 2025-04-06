@@ -115,9 +115,15 @@ $(BUILDPATH)hello5.bim : $(BUILDPATH)hello5.obj Makefile
 $(BUILDPATH)hello5.hrb : $(BUILDPATH)hello5.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)hello5.bim $(BUILDPATH)hello5.hrb 0
 
+$(BUILDPATH)winhelo.bim : $(BUILDPATH)winhelo.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)winhelo.bim stack:1k map:$(BUILDPATH)winhelo.map $(BUILDPATH)winhelo.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)winhelo.hrb : $(BUILDPATH)winhelo.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)winhelo.bim $(BUILDPATH)winhelo.hrb 0
+
 $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
 							$(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb \
-							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb Makefile
+							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb $(BUILDPATH)winhelo.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
@@ -131,6 +137,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)hello3.hrb to:@: \
 		copy from:$(BUILDPATH)hello4.hrb to:@: \
 		copy from:$(BUILDPATH)hello5.hrb to:@: \
+		copy from:$(BUILDPATH)winhelo.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
