@@ -61,12 +61,6 @@ $(BUILDPATH)bootpack.hrb : $(BUILDPATH)bootpack.bim Makefile
 $(BUILDPATH)haribote.sys : $(BUILDPATH)asmhead.bin $(BUILDPATH)bootpack.hrb Makefile
 	copy /B $(BUILDPATH_W)asmhead.bin+$(BUILDPATH_W)bootpack.hrb $(BUILDPATH_W)haribote.sys
 
-$(BUILDPATH)hello.hrb : hello.nas Makefile
-	$(NASK) hello.nas $(BUILDPATH)hello.hrb $(BUILDPATH)hello.lst
-
-$(BUILDPATH)hello2.hrb : hello2.nas Makefile
-	$(NASK) hello2.nas $(BUILDPATH)hello2.hrb $(BUILDPATH)hello2.lst
-
 $(BUILDPATH)a_nask.obj : a_nask.nas Makefile
 	$(NASK) a_nask.nas $(BUILDPATH)a_nask.obj $(BUILDPATH)a_nask.lst
 
@@ -88,6 +82,21 @@ $(BUILDPATH)bug2.bim : $(BUILDPATH)bug2.obj Makefile
 $(BUILDPATH)bug2.hrb : $(BUILDPATH)bug2.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)bug2.bim $(BUILDPATH)bug2.hrb 0
 
+$(BUILDPATH)%.obj : %.nas Makefile
+	$(NASK) $< $@ $(BUILDPATH)$*.lst
+
+$(BUILDPATH)hello.bim : $(BUILDPATH)hello.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello.bim map:$(BUILDPATH)hello.map $(BUILDPATH)hello.obj
+
+$(BUILDPATH)hello.hrb : $(BUILDPATH)hello.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello.bim $(BUILDPATH)hello.hrb 0
+
+$(BUILDPATH)hello2.bim : $(BUILDPATH)hello2.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello2.bim map:$(BUILDPATH)hello2.map $(BUILDPATH)hello2.obj
+
+$(BUILDPATH)hello2.hrb : $(BUILDPATH)hello2.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello2.bim $(BUILDPATH)hello2.hrb 0
+
 $(BUILDPATH)hello3.bim : $(BUILDPATH)hello3.obj $(BUILDPATH)a_nask.obj Makefile
 	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello3.bim map:$(BUILDPATH)hello3.map $(BUILDPATH)hello3.obj $(BUILDPATH)a_nask.obj
 
@@ -100,9 +109,15 @@ $(BUILDPATH)hello4.bim : $(BUILDPATH)hello4.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)hello4.hrb : $(BUILDPATH)hello4.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)hello4.bim $(BUILDPATH)hello4.hrb 0
 
+$(BUILDPATH)hello5.bim : $(BUILDPATH)hello5.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)hello5.bim stack:1k map:$(BUILDPATH)hello5.map $(BUILDPATH)hello5.obj
+
+$(BUILDPATH)hello5.hrb : $(BUILDPATH)hello5.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)hello5.bim $(BUILDPATH)hello5.hrb 0
+
 $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
 							$(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb \
-							$(BUILDPATH)hello4.hrb Makefile
+							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
@@ -115,6 +130,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)bug2.hrb to:@: \
 		copy from:$(BUILDPATH)hello3.hrb to:@: \
 		copy from:$(BUILDPATH)hello4.hrb to:@: \
+		copy from:$(BUILDPATH)hello5.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
