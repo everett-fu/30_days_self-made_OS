@@ -500,11 +500,13 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		reg[7] = (int)sht;
 
 	}
+	// 窗口上显示字符api
 	else if (edx == 6) {
 		sht = (struct SHEET *)ebx;
 		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *)ebp + ds_base);
 		sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
 	}
+	// 窗口上描绘矩形api
 	else if (edx ==7) {
 		sht = (struct SHEET *)ebx;
 		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);

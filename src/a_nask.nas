@@ -11,7 +11,7 @@
 
 [SECTION .text]
 ; 显示字符
-_api_putchar:       ; void api_putchar(char c)
+_api_putchar:       ; void api_putchar(char c);
     MOV     EDX, 1
     MOV     AL, [ESP + 4]
     INT     0x40
@@ -23,7 +23,7 @@ _api_end:
     INT     0x40
 
 ; 显示字符串
-_api_putstr:        ; void api_putstr(char *str)
+_api_putstr:        ; void api_putstr(char *str);
     PUSH    EBX
     MOV     EDX, 2
     MOV     EBX, [ESP + 8]
@@ -32,7 +32,7 @@ _api_putstr:        ; void api_putstr(char *str)
     RET
 
 ; 显示窗口
-_api_openwin:
+_api_openwin:           ; int api_openwin(char *buf, int x, int y, int color, char *title);
     PUSH    EDI
     PUSH    ESI
     PUSH    EBX
@@ -48,8 +48,8 @@ _api_openwin:
     POP     EDI
     RET
 
-;
-_api_putstrwin:
+; 窗口上显示字符api
+_api_putstrwin:         ; void api_putstrwin(int win, int x, int y, int color, int len, char *str);
     PUSH    EDI
     PUSH    ESI
     PUSH    EBP
@@ -68,8 +68,8 @@ _api_putstrwin:
     POP     EDI
     RET
 
-
-_api_boxfilwin:
+; 窗口上描绘方块api
+_api_boxfilwin:         ; void api_boxfilwin(int win, int x, int y, int w, int h, int color);
     PUSH    EDI
     PUSH    ESI
     PUSH    EBP
