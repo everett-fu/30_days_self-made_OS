@@ -359,6 +359,8 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 	char name[18], *p, *q;
 	int i;
 
+	int segsiz, datsiz, esp, dathrb;
+
 	// 将命令名复制到文件名
 	for (i = 0; i < 13; i++) {
 		// 在ASCII码中，小于空格的一般为控制字符，无实际意义
@@ -382,22 +384,35 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 	// 找到文件
 	if (finfo !=0) {
 		p = (char *)memman_alloc_4k(memman, finfo->size);
-		q = (char *)memman_alloc_4k(memman, 64 * 1024);
-		*((int *)0xfe8) = (int)p;
 		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *)(ADR_DISKIMG + 0x003e00));
-		//1003作为应用程序代码段，1004作为数据段
-		set_segmdesc(gdt + 1003, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
-		set_segmdesc(gdt + 1004, 64 * 1024 - 1, (int)q, AR_DATA32_RW + 0x60);
-		// 只要通过bim2hrb生成的hrb文件，第4~7字节一定为Hari
-		if (finfo->size >= 8 && strncmp(p + 4, "Hari", 4) == 0) {
-			// 现在不用IETF指令，因此跳转到HariMain的汇编指令不需要了
-			start_app(0x1b, 1003 * 8, 64 * 1024, 1004 * 8, &(task->tss.esp0));
-		}
-		else {
-			start_app(0, 1003 * 8, 64 * 1024, 1004 * 8, &(task->tss.esp0));
+		// 判断是不是应用程序
+		if (finfo->size >= 36 && strncmp(p + 4, "Hari", 4) == 0 && *p == 0x00) {
+			// 获取应用程序数据段大小
+			segsiz = *((int *) (p + 0x0000));
+			// esp是堆栈指针
+			esp = *((int *) (p + 0x000c));
+			// 数据段的字节数
+			datsiz = *((int *) (p + 0x0010));
+			// 数据段的起始地址
+			dathrb = *((int *) (p + 0x0014));
+			// 申请数据段
+			q = (char *)memman_alloc_4k(memman, segsiz);
+			*((int *)0xfe8) = (int)q;
+			//1003作为应用程序代码段，1004作为数据段
+			set_segmdesc(gdt + 1003, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
+			set_segmdesc(gdt + 1004, segsiz - 1, (int)q, AR_DATA32_RW + 0x60);
+			// 将数据段的内容复制到申请的内存中
+			for (i = 0; i < datsiz; i++) {
+				q[esp + i] = p[dathrb + i];
+			}
+			// 调用应用程序
+			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			// 释放数据段
+			memman_free_4k(memman, (int) q, segsiz);
+		} else {
+			cons_putstr(cons, ".hrb file format error.\n");
 		}
 		memman_free_4k(memman, (int)p, finfo->size);
-		memman_free_4k(memman, (int)q, 64 * 1024);
 		cons_newline(cons);
 		return 1;
 	}
@@ -446,6 +461,7 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	int cs_base = *((int*)0xfe8);
 	struct TASK *task = task_now();
 	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0x0fec);
+	char s[30];
 	// 显示单个字符
 	if (edx == 1) {
 		// AL=字符编码
@@ -455,7 +471,8 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	else if (edx == 2) {
 		// EBX=字符串地址
 		cons_putstr(cons, (char *)ebx + cs_base);
-
+		sprintf(s, "%08X\n", ebx);
+		cons_putstr(cons, s);
 	}
 	// 显示指定长的的字符串
 	else if (edx == 3) {
