@@ -100,7 +100,9 @@ $(BUILDPATH)hello4.bim : $(BUILDPATH)hello4.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)hello4.hrb : $(BUILDPATH)hello4.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)hello4.bim $(BUILDPATH)hello4.hrb 0
 
-$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb $(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb $(BUILDPATH)hello4.hrb Makefile
+$(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
+							$(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb \
+							$(BUILDPATH)hello4.hrb Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
 		copy from:$(BUILDPATH)haribote.sys to:@: \
@@ -142,9 +144,8 @@ clean :
 	-$(DEL) $(BUILDPATH_W)*.lst
 	-$(DEL) $(BUILDPATH_W)*.obj
 	-$(DEL) $(BUILDPATH_W)*.hrb
-	-$(DEL) $(BUILDPATH_W)bootpack.map
-	-$(DEL) $(BUILDPATH_W)bootpack.bim
-	-$(DEL) $(BUILDPATH_W)bootpack.hrb
+	-$(DEL) $(BUILDPATH_W)*.map
+	-$(DEL) $(BUILDPATH_W)*.bim
 	-$(DEL) $(BUILDPATH_W)haribote.sys
 	-$(DEL) ..\images\haribote.img
 
