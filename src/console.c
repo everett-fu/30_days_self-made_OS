@@ -502,15 +502,21 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	}
 	// 窗口上显示字符api
 	else if (edx == 6) {
-		sht = (struct SHEET *)ebx;
+		// 按2的倍数取整
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
 		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *)ebp + ds_base);
-		sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		// 判断最低位是否为0，如果是0，则为偶数，则刷新窗口
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
 	}
 	// 窗口上描绘矩形api
 	else if (edx ==7) {
-		sht = (struct SHEET *)ebx;
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
 		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
-		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
 	}
 	// 应用程序初始化栈api
 	// EDX = 8
@@ -550,9 +556,22 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	// EDI = 显示的y坐标
 	// EAX = 色号
 	else if (edx == 11) {
-		sht = (struct SHEET *)ebx;
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
 		sht->buf[sht->bxsize * edi + esi] = eax;
-		sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	}
+	// 刷新窗口api
+	// EDX = 12
+	// EBX = 窗口句柄
+	// EAX = 刷新区域左上角x坐标
+	// ECX = 刷新区域左上角y坐标
+	// ESI = 刷新区域的右下角x坐标
+	// EDI = 刷新区域的右下角y坐标
+	else if (edx == 12) {
+		sht = (struct SHEET *)ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
 	}
 	return 0;
 }
