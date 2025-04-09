@@ -7,8 +7,8 @@
 ; 制作目标文件的文件名
 [FILE "a_nask.nas"]
 
-    GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin
-    GLOBAL _api_initmalloc, _api_malloc, _api_free
+    GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin, _api_initmalloc
+    GLOBAL _api_malloc, _api_free, _api_point
 
 [SECTION .text]
 ; 显示字符
@@ -124,4 +124,20 @@ _api_free:              ; void api_free(char *addr, int size);
     MOV     ECX, [ESP + 12]
     INT     0x040
     POP     EBX
+    RET
+
+; 画点api
+_api_point:             ; void api_point(int win, int x, int y, int col);
+    PUSH    EDI
+    PUSH    ESI
+    PUSH    EBX
+    MOV     EDX, 11
+    MOV     EBX, [ESP + 16]
+    MOV     ESI, [ESP + 20]
+    MOV     EDI, [ESP + 24]
+    MOV     EAX, [ESP + 28]
+    INT     0x40
+    pop     EBX
+    pop     ESI
+    pop     EDI
     RET

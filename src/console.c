@@ -543,6 +543,17 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		ecx = (ecx +0x0f) & 0xfffffff0;
 		memman_free((struct MEMMAN *)(ebx + ds_base), eax, ecx);
 	}
+	// 应用程序画点api
+	// EDX = 11
+	// EBX = 窗口句柄
+	// ESI = 显示的x坐标
+	// EDI = 显示的y坐标
+	// EAX = 色号
+	else if (edx == 11) {
+		sht = (struct SHEET *)ebx;
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+	}
 	return 0;
 }
 
