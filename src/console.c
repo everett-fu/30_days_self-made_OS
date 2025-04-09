@@ -511,7 +511,37 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		sht = (struct SHEET *)ebx;
 		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
 		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
-
+	}
+	// 应用程序初始化栈api
+	// EDX = 8
+	// EBX = memman的地址
+	// EAX = memman所管理的内存空间的起始地址
+	// ECX = memman所管理的内存空间的字节数
+	else if (edx == 8) {
+		memman_init((struct MEMMAN *)(ebx + ds_base));
+		// 将内存空间字节数对齐到16字节
+		ecx &= 0xfffffff0;
+		// 初始化所有的内存空间
+		memman_free((struct MEMMAN *)(ebx + ds_base), eax, ecx);
+	}
+	// 应用程序栈分配api
+	// EDX = 9
+	// EBX = memman的地址
+	// ECX = 需要请求的字节数
+	// EAX = 分配到的内存空间地址
+	else if (edx == 9) {
+		// 将内存空间字节数对齐到16字节（向上取整）
+		ecx = (ecx + 0x0f) & 0xfffffff0;
+		reg[7] = memman_alloc((struct MEMMAN *)(ebx + ds_base), ecx);
+	}
+	// 应用程序栈释放api
+	// EDX = 10
+	// EBX = memman的地址
+	// EAX = 需要释放的内存空间地址
+	// ECX = 需要释放的字节数
+	else if (edx == 10) {
+		ecx = (ecx +0x0f) & 0xfffffff0;
+		memman_free((struct MEMMAN *)(ebx + ds_base), eax, ecx);
 	}
 	return 0;
 }

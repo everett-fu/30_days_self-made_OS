@@ -8,6 +8,7 @@
 [FILE "a_nask.nas"]
 
     GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin
+    GLOBAL _api_initmalloc, _api_malloc, _api_free
 
 [SECTION .text]
 ; 显示字符
@@ -86,4 +87,41 @@ _api_boxfilwin:         ; void api_boxfilwin(int win, int x, int y, int w, int h
     POP     EBP
     POP     ESI
     POP     EDI
+    RET
+
+; 应用程序栈初始化api
+_api_initmalloc:        ; void api_initmalloc(void);
+    PUSH    EBX
+    MOV     EDX, 8
+    ; malloc内存空间的地址
+    MOV     EBX, [CS:0x0020]
+    MOV     EAX, EBX
+    ; 加上32kb，用于内存管理器的使用
+    ADD     EAX, 32 * 1024
+    ; 数据段的大小
+    MOV     ECX, [CS:0x0000]
+    SUB     ECX, EAX
+    INT     0x040
+    POP     EBX
+    RET
+
+; 应用程序栈分配api
+_api_malloc:            ; char * api_malloc(int size);
+    PUSH    EBX
+    MOV     EDX, 9
+    MOV     EBX, [CS:0x0020]
+    MOV     ECX, [ESP + 8]
+    INT     0x040
+    POP     EBX
+    RET
+
+; 应用程序栈回收api
+_api_free:              ; void api_free(char *addr, int size);
+    PUSH    EBX
+    MOV     EDX, 10
+    MOV     EBX, [CS:0x0020]
+    MOV     EAX, [ESP + 8]
+    MOV     ECX, [ESP + 12]
+    INT     0x040
+    POP     EBX
     RET
