@@ -573,6 +573,21 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		sht = (struct SHEET *)ebx;
 		sheet_refresh(sht, eax, ecx, esi, edi);
 	}
+	// 画直线api
+	// EDX = 13
+	// EBX = 窗口句柄
+	// EAX = x0
+	// ECX = y0
+	// ESI = x1
+	// EDI = y1
+	// EBP = 色号
+	else if (edx == 13) {
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	}
 	return 0;
 }
 
@@ -622,4 +637,81 @@ int *inthandler0c(int *esp) {
 	sprintf(s, "EIP = %08x\n", esp[11]);
 	cons_putstr(cons, s);
 	return &(task->tss.esp0);
+}
+
+/**
+ * 画直线api
+ * @param sht		窗口句柄
+ * @param x0		起始x坐标
+ * @param y0		起始y坐标
+ * @param x1		结束x坐标
+ * @param y1		结束y坐标
+ * @param col		颜色
+ */
+void hrb_api_linewin(struct SHEET *sht, int x0, int y0, int x1, int y1, int col) {
+
+	int i, x, y;
+	// 需要绘制点的个数
+	int len;
+	// x方向上每隔dx个像素加一，y方向上每隔dy个像素加一
+	int dx, dy;
+
+	// 计算两点之间x,y的距离
+	dx = x1 - x0;
+	dy = y1 - y0;
+	// 扩大2^10倍，避免浮点数运算
+	x = x0 << 10;
+	y = y0 << 10;
+	if (dx < 0) {
+		dx = -dx;
+	}
+	if (dy < 0) {
+		dy = -dy;
+	}
+
+	// 比较两点之间x的差值与y的差值，将变化较大的作为点个数
+	if (dx >= dy) {
+		// 最后一个点也要显示
+		len = dx + 1;
+		// 确定dx
+		if (x0 > x1) {
+			// 由于扩大10倍参与运算，1024实际上就是移动1一个像素
+			dx = -1024;
+		}
+		else {
+			dx = 1024;
+		}
+
+		// 确定dy
+		if (y0<= y1) {
+			dy = ((y1 - y0 + 1) << 10) / len;
+		}
+		else {
+			dy = ((y1 - y0 - 1) << 10) / len;
+		}
+	}
+	else {
+		len = dy + 1;
+		if (y0 > y1) {
+			dy = -1024;
+		}
+		else {
+			dy = 1024;
+		}
+		if (x0 <= x1) {
+			dx = ((x1 - x0 + 1) << 10) / len;
+		}
+		else {
+			dx = ((x1 - x0 - 1) << 10) / len;
+		}
+	}
+
+	// 绘制直线
+	for (i = 0; i < len; i++) {
+		// 相当于y * bxsize(窗口宽度) + x
+		sht->buf[(y >> 10) * sht->bxsize + (x >> 10)] = col;
+		x += dx;
+		y += dy;
+	}
+	return;
 }

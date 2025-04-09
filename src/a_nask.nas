@@ -8,7 +8,7 @@
 [FILE "a_nask.nas"]
 
     GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin, _api_initmalloc
-    GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin
+    GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin, _api_linewin
 
 [SECTION .text]
 ; 显示字符
@@ -157,4 +157,24 @@ _api_refreshwin:        ; void api_refreshwin(int win, int x0, int y0, int x1, i
     pop     EBX
     pop     ESI
     pop     EDI
+    RET
+
+; 绘制直线api
+_api_linewin:           ; void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+    PUSH    EDI
+    PUSH    ESI
+    PUSH    EBP
+    PUSH    EBX
+    MOV     EDX, 13
+    MOV     EBX, [ESP + 20]
+    MOV     EAX, [ESP + 24]
+    MOV     ECX, [ESP + 28]
+    MOV     ESI, [ESP + 32]
+    MOV     EDI, [ESP + 36]
+    MOV     EBP, [ESP + 40]
+    INT     0x40
+    POP     EBX
+    POP     EBP
+    POP     ESI
+    POP     EDI
     RET
