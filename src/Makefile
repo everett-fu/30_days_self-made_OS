@@ -145,10 +145,16 @@ $(BUILDPATH)stars.bim : $(BUILDPATH)stars.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)stars.hrb : $(BUILDPATH)stars.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)stars.bim $(BUILDPATH)stars.hrb 100k
 
+$(BUILDPATH)star2.bim : $(BUILDPATH)star2.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)star2.bim stack:1k map:$(BUILDPATH)star2.map $(BUILDPATH)star2.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)star2.hrb : $(BUILDPATH)star2.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)star2.bim $(BUILDPATH)star2.hrb 100k
+
 $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
 							$(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb \
 							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb $(BUILDPATH)winhelo.hrb $(BUILDPATH)winhelo2.hrb \
-							$(BUILDPATH)winhelo3.hrb $(BUILDPATH)star1.hrb $(BUILDPATH)stars.hrb \
+							$(BUILDPATH)winhelo3.hrb $(BUILDPATH)star1.hrb $(BUILDPATH)stars.hrb $(BUILDPATH)star2.hrb \
 							Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
@@ -168,6 +174,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)winhelo3.hrb to:@: \
 		copy from:$(BUILDPATH)star1.hrb to:@: \
 		copy from:$(BUILDPATH)stars.hrb to:@: \
+		copy from:$(BUILDPATH)star2.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
