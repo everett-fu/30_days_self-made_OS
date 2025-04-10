@@ -32,8 +32,6 @@
  * @param memtotal		内存地址
  */
 void console_task(struct SHEET *sheet, unsigned int memtotal){
-	// 界面刷新定时器
-	struct TIMER *timer;
 	// 获取当前任务的地址
 	struct TASK *task = task_now();
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
@@ -53,9 +51,9 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	char cmdline[30];
 
 	fifo32_init(&task->fifo, 128, fifobuf, task);
-	timer = timer_alloc();
-	timer_init(timer, &task->fifo, 1);
-	timer_settime(timer, 50);
+	cons.timer = timer_alloc();
+	timer_init(cons.timer, &task->fifo, 1);
+	timer_settime(cons.timer, 50);
 
 	file_readfat(fat, (unsigned char *)(ADR_DISKIMG + 0x000200));
 
@@ -75,18 +73,18 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 			// 光标定时器
 			if (i <= 1) {
 				if (i == 1) {
-					timer_init(timer, &task->fifo, 0);
+					timer_init(cons.timer, &task->fifo, 0);
 					if (cons.cur_c >= 0) {
 						cons.cur_c = COL8_FFFFFF;
 					}
 				}
 				else {
-					timer_init(timer, &task->fifo, 1);
+					timer_init(cons.timer, &task->fifo, 1);
 					if (cons.cur_c >= 0) {
 						cons.cur_c = COL8_000000;
 					}
 				}
-				timer_settime(timer, 50);
+				timer_settime(cons.timer, 50);
 			}
 			// 打开光标
 			else if (i == 2) {
@@ -356,6 +354,8 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)ADR_GDT;
 	struct FILEINFO *finfo;
 	struct TASK *task = task_now();
+	struct SHTCTL *shtctl;
+	struct SHEET *sht;
 	char name[18], *p, *q;
 	int i;
 
@@ -407,6 +407,14 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 			}
 			// 调用应用程序
 			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			shtctl = (struct SHTCTL *)*((int *)0x0fe4);
+			// 关闭程序时检查图层有没有关闭
+			for (i = 0; i < MAX_SHEETS; i++) {
+				sht = &(shtctl->sheets0[i]);
+				if (sht->flags != 0 && sht->task == task) {
+					sheet_free(sht);
+				}
+			}
 			// 释放数据段
 			memman_free_4k(memman, (int) q, segsiz);
 		} else {
@@ -493,25 +501,150 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	// 创建窗口
 	else if (edx == 5) {
 		sht = sheet_alloc(shtctl);
+		sht->task = task;
 		sheet_setbuf(sht, (char *)ebx + ds_base, esi, edi, eax);
 		make_window8((char *)ebx + ds_base, esi, edi, (char *)ecx + ds_base, 0);
 		sheet_slide(sht, 100, 50);
 		sheet_updown(sht, 3);
 		reg[7] = (int)sht;
-
 	}
 	// 窗口上显示字符api
 	else if (edx == 6) {
-		sht = (struct SHEET *)ebx;
+		// 按2的倍数取整
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
 		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *)ebp + ds_base);
-		sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		// 判断最低位是否为0，如果是0，则为偶数，则刷新窗口
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
 	}
 	// 窗口上描绘矩形api
 	else if (edx ==7) {
-		sht = (struct SHEET *)ebx;
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
 		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
-		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
-
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	}
+	// 应用程序初始化栈api
+	// EDX = 8
+	// EBX = memman的地址
+	// EAX = memman所管理的内存空间的起始地址
+	// ECX = memman所管理的内存空间的字节数
+	else if (edx == 8) {
+		memman_init((struct MEMMAN *)(ebx + ds_base));
+		// 将内存空间字节数对齐到16字节
+		ecx &= 0xfffffff0;
+		// 初始化所有的内存空间
+		memman_free((struct MEMMAN *)(ebx + ds_base), eax, ecx);
+	}
+	// 应用程序栈分配api
+	// EDX = 9
+	// EBX = memman的地址
+	// ECX = 需要请求的字节数
+	// EAX = 分配到的内存空间地址
+	else if (edx == 9) {
+		// 将内存空间字节数对齐到16字节（向上取整）
+		ecx = (ecx + 0x0f) & 0xfffffff0;
+		reg[7] = memman_alloc((struct MEMMAN *)(ebx + ds_base), ecx);
+	}
+	// 应用程序栈释放api
+	// EDX = 10
+	// EBX = memman的地址
+	// EAX = 需要释放的内存空间地址
+	// ECX = 需要释放的字节数
+	else if (edx == 10) {
+		ecx = (ecx +0x0f) & 0xfffffff0;
+		memman_free((struct MEMMAN *)(ebx + ds_base), eax, ecx);
+	}
+	// 应用程序画点api
+	// EDX = 11
+	// EBX = 窗口句柄
+	// ESI = 显示的x坐标
+	// EDI = 显示的y坐标
+	// EAX = 色号
+	else if (edx == 11) {
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	}
+	// 刷新窗口api
+	// EDX = 12
+	// EBX = 窗口句柄
+	// EAX = 刷新区域左上角x坐标
+	// ECX = 刷新区域左上角y坐标
+	// ESI = 刷新区域的右下角x坐标
+	// EDI = 刷新区域的右下角y坐标
+	else if (edx == 12) {
+		sht = (struct SHEET *)ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	}
+	// 画直线api
+	// EDX = 13
+	// EBX = 窗口句柄
+	// EAX = x0
+	// ECX = y0
+	// ESI = x1
+	// EDI = y1
+	// EBP = 色号
+	else if (edx == 13) {
+		sht = (struct SHEET *)(ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	}
+	// 关闭窗口api
+	// EDX = 14
+	// EBX = 窗口句柄
+	else if (edx == 14) {
+		sheet_free(((struct SHEET *)ebx));
+	}
+	// 键盘输入api
+	// EDX = 15
+	// EAX = 0 没有键盘输入时返回-1，不休眠
+	//		 1 休眠直到发生键盘输入
+	// EAX = 输入的字符编码
+	else if (edx == 15) {
+		int i;
+		for (;;) {
+			io_cli();
+			// fifo为空
+			if (fifo32_status(&task->fifo) == 0) {
+				// 休眠
+				if (eax != 0) {
+					task_sleep(task);
+				}
+				// 不休眠
+				else {
+					io_sti();
+					reg[7] = -1;
+					return 0;
+				}
+			}
+			i = fifo32_get(&task->fifo);
+			io_sti();
+			// 光标定时器
+			if (i <= 1) {
+				timer_init(cons->timer, &task->fifo, 1);
+				timer_settime(cons->timer, 50);
+			}
+			// 打开光标
+			if (i == 2) {
+				cons->cur_c = COL8_FFFFFF;
+			}
+			// 关闭光标
+			else if (i == 3) {
+				cons->cur_c = -1;
+			}
+			// 键盘数据
+			else if (256 <= i && i <= 511) {
+				reg[7] = i - 256;
+				return 0;
+			}
+		}
 	}
 	return 0;
 }
@@ -562,4 +695,81 @@ int *inthandler0c(int *esp) {
 	sprintf(s, "EIP = %08x\n", esp[11]);
 	cons_putstr(cons, s);
 	return &(task->tss.esp0);
+}
+
+/**
+ * 画直线api
+ * @param sht		窗口句柄
+ * @param x0		起始x坐标
+ * @param y0		起始y坐标
+ * @param x1		结束x坐标
+ * @param y1		结束y坐标
+ * @param col		颜色
+ */
+void hrb_api_linewin(struct SHEET *sht, int x0, int y0, int x1, int y1, int col) {
+
+	int i, x, y;
+	// 需要绘制点的个数
+	int len;
+	// x方向上每隔dx个像素加一，y方向上每隔dy个像素加一
+	int dx, dy;
+
+	// 计算两点之间x,y的距离
+	dx = x1 - x0;
+	dy = y1 - y0;
+	// 扩大2^10倍，避免浮点数运算
+	x = x0 << 10;
+	y = y0 << 10;
+	if (dx < 0) {
+		dx = -dx;
+	}
+	if (dy < 0) {
+		dy = -dy;
+	}
+
+	// 比较两点之间x的差值与y的差值，将变化较大的作为点个数
+	if (dx >= dy) {
+		// 最后一个点也要显示
+		len = dx + 1;
+		// 确定dx
+		if (x0 > x1) {
+			// 由于扩大10倍参与运算，1024实际上就是移动1一个像素
+			dx = -1024;
+		}
+		else {
+			dx = 1024;
+		}
+
+		// 确定dy
+		if (y0<= y1) {
+			dy = ((y1 - y0 + 1) << 10) / len;
+		}
+		else {
+			dy = ((y1 - y0 - 1) << 10) / len;
+		}
+	}
+	else {
+		len = dy + 1;
+		if (y0 > y1) {
+			dy = -1024;
+		}
+		else {
+			dy = 1024;
+		}
+		if (x0 <= x1) {
+			dx = ((x1 - x0 + 1) << 10) / len;
+		}
+		else {
+			dx = ((x1 - x0 - 1) << 10) / len;
+		}
+	}
+
+	// 绘制直线
+	for (i = 0; i < len; i++) {
+		// 相当于y * bxsize(窗口宽度) + x
+		sht->buf[(y >> 10) * sht->bxsize + (x >> 10)] = col;
+		x += dx;
+		y += dy;
+	}
+	return;
 }

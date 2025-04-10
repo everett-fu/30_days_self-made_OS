@@ -7,7 +7,8 @@
 ; 制作目标文件的文件名
 [FILE "a_nask.nas"]
 
-    GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin
+    GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin, _api_initmalloc
+    GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin, _api_linewin, _api_closewin, _api_getkey
 
 [SECTION .text]
 ; 显示字符
@@ -86,4 +87,110 @@ _api_boxfilwin:         ; void api_boxfilwin(int win, int x, int y, int w, int h
     POP     EBP
     POP     ESI
     POP     EDI
+    RET
+
+; 应用程序栈初始化api
+_api_initmalloc:        ; void api_initmalloc(void);
+    PUSH    EBX
+    MOV     EDX, 8
+    ; malloc内存空间的地址
+    MOV     EBX, [CS:0x0020]
+    MOV     EAX, EBX
+    ; 加上32kb，用于内存管理器的使用
+    ADD     EAX, 32 * 1024
+    ; 数据段的大小
+    MOV     ECX, [CS:0x0000]
+    SUB     ECX, EAX
+    INT     0x040
+    POP     EBX
+    RET
+
+; 应用程序栈分配api
+_api_malloc:            ; char * api_malloc(int size);
+    PUSH    EBX
+    MOV     EDX, 9
+    MOV     EBX, [CS:0x0020]
+    MOV     ECX, [ESP + 8]
+    INT     0x040
+    POP     EBX
+    RET
+
+; 应用程序栈回收api
+_api_free:              ; void api_free(char *addr, int size);
+    PUSH    EBX
+    MOV     EDX, 10
+    MOV     EBX, [CS:0x0020]
+    MOV     EAX, [ESP + 8]
+    MOV     ECX, [ESP + 12]
+    INT     0x040
+    POP     EBX
+    RET
+
+; 画点api
+_api_point:             ; void api_point(int win, int x, int y, int col);
+    PUSH    EDI
+    PUSH    ESI
+    PUSH    EBX
+    MOV     EDX, 11
+    MOV     EBX, [ESP + 16]
+    MOV     ESI, [ESP + 20]
+    MOV     EDI, [ESP + 24]
+    MOV     EAX, [ESP + 28]
+    INT     0x40
+    pop     EBX
+    pop     ESI
+    pop     EDI
+    RET
+
+; 刷新窗口api
+_api_refreshwin:        ; void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+    PUSH    EDI
+    PUSH    ESI
+    PUSH    EBX
+    MOV     EDX, 12
+    MOV     EBX, [ESP + 16]
+    MOV     EAX, [ESP + 20]
+    MOV     ECX, [ESP + 24]
+    MOV     ESI, [ESP + 28]
+    MOV     EDI, [ESP + 32]
+    INT     0x40
+    pop     EBX
+    pop     ESI
+    pop     EDI
+    RET
+
+; 绘制直线api
+_api_linewin:           ; void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+    PUSH    EDI
+    PUSH    ESI
+    PUSH    EBP
+    PUSH    EBX
+    MOV     EDX, 13
+    MOV     EBX, [ESP + 20]
+    MOV     EAX, [ESP + 24]
+    MOV     ECX, [ESP + 28]
+    MOV     ESI, [ESP + 32]
+    MOV     EDI, [ESP + 36]
+    MOV     EBP, [ESP + 40]
+    INT     0x40
+    POP     EBX
+    POP     EBP
+    POP     ESI
+    POP     EDI
+    RET
+
+; 关闭窗口api
+_api_closewin:          ; void api_closewin(int win);
+    PUSH    EBX
+    MOV     EDX, 14
+    MOV     EBX, [ESP + 8]
+    INT     0x40
+    POP     EBX
+    RET
+
+; 键盘输入api
+_api_getkey:            ; int api_getkey(int mode);
+    MOV     EDX, 15
+    MOV     EAX, [ESP + 4]
+    INT     0x40
     RET

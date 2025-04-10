@@ -3,3 +3,4 @@ z_tools/
 .clang-format
 ./build/
 ./images/
+.src/app/build/

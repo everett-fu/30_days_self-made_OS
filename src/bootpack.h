@@ -236,6 +236,7 @@ struct SHEET {
 	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用
 	int bxsize, bysize, vx0, vy0, col_inv, height, flags;
 	struct SHTCTL *ctl;
+	struct TASK *task;
 };
 struct SHTCTL {
 	// vram: 显存地址
@@ -377,6 +378,7 @@ struct CONSOLE {
 	struct SHEET *sht;
 	// 光标位置，x，y，颜色
 	int cur_x, cur_y, cur_c;
+	struct TIMER *timer;
 };
 void console_task(struct SHEET *sheet, unsigned int memtotal);
 void cons_newline(struct CONSOLE *cons);
@@ -392,6 +394,7 @@ void cons_putstr_length(struct CONSOLE *cons, char *s, int l);
 int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
 int *inthandler0d(int *esp);
 int *inthandler0c(int *esp);
+void hrb_api_linewin(struct SHEET *sht, int x0, int y0, int x1, int y1, int col);
 
 //file.c
 struct FILEINFO {
