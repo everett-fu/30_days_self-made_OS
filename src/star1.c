@@ -18,6 +18,8 @@ void api_initmalloc(void);
 char *api_malloc(int size);
 void api_point(int win, int x, int y, int col);
 void api_end(void);
+int api_getkey(int mode);
+void api_closewin(int win);
 
 void HariMain(void) {
 	char *buf;
@@ -27,5 +29,11 @@ void HariMain(void) {
 	win = api_openwin(buf, 150, 100, -1, "star1");
 	api_boxfilwin(win, 6, 26, 143, 93, 0);
 	api_point(win, 75, 59, 3);
+	for (;;) {
+		if (api_getkey(1) == 0x0a) {
+			break;
+		}
+	}
+	api_closewin(win);
 	api_end();
 }

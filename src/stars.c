@@ -17,6 +17,8 @@ void api_initmalloc(void);
 char *api_malloc(int size);
 void api_point(int win, int x, int y, int col);
 void api_end(void);
+int api_getkey(int mode);
+void api_closewin(int win);
 
 int rand(void);
 
@@ -33,5 +35,11 @@ void HariMain(void) {
 		y = (rand() % 67) + 26;
 		api_point(win, x, y, 3);
 	}
+	for (;;) {
+		if (api_getkey(1) == 0x0a) {
+			break;
+		}
+	}
+	api_closewin(win);
 	api_end();
 }
