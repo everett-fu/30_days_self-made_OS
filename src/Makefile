@@ -18,7 +18,7 @@ OBJS_BOOTPACK = $(BUILDPATH)bootpack.obj $(BUILDPATH)naskfunc.obj $(BUILDPATH)ha
 	$(BUILDPATH)window.obj $(BUILDPATH)console.obj $(BUILDPATH)file.obj \
 
 # 编译工具目录
-MAKE		= $(TOOLPATH)make.exe -r
+MAKE		= make -r -j16
 NASK		= $(TOOLPATH)nask.exe
 CC1			= $(TOOLPATH)cc1.exe -I$(INCPATH) -Os -Wall -quiet
 GAS2NASK	= $(TOOLPATH)gas2nask.exe -a
@@ -69,18 +69,6 @@ $(BUILDPATH)a.bim : $(BUILDPATH)a.obj $(BUILDPATH)a_nask.obj Makefile
 
 $(BUILDPATH)a.hrb : $(BUILDPATH)a.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)a.bim $(BUILDPATH)a.hrb 0
-
-$(BUILDPATH)bug1.bim : $(BUILDPATH)bug1.obj $(BUILDPATH)a_nask.obj Makefile
-	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)bug1.bim map:$(BUILDPATH)bug1.map $(BUILDPATH)bug1.obj $(BUILDPATH)a_nask.obj
-
-$(BUILDPATH)bug1.hrb : $(BUILDPATH)bug1.bim Makefile
-	$(BIM2HRB) $(BUILDPATH)bug1.bim $(BUILDPATH)bug1.hrb 0
-
-$(BUILDPATH)bug2.bim : $(BUILDPATH)bug2.obj Makefile
-	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)bug2.bim map:$(BUILDPATH)bug2.map $(BUILDPATH)bug2.obj
-
-$(BUILDPATH)bug2.hrb : $(BUILDPATH)bug2.bim Makefile
-	$(BIM2HRB) $(BUILDPATH)bug2.bim $(BUILDPATH)bug2.hrb 0
 
 $(BUILDPATH)%.obj : %.nas Makefile
 	$(NASK) $< $@ $(BUILDPATH)$*.lst
@@ -164,7 +152,7 @@ $(BUILDPATH)walk.hrb : $(BUILDPATH)walk.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)walk.bim $(BUILDPATH)walk.hrb 100k
 
 $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
-							$(BUILDPATH)a.hrb $(BUILDPATH)bug1.hrb $(BUILDPATH)bug2.hrb $(BUILDPATH)hello3.hrb \
+							$(BUILDPATH)a.hrb $(BUILDPATH)hello3.hrb \
 							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb $(BUILDPATH)winhelo.hrb $(BUILDPATH)winhelo2.hrb \
 							$(BUILDPATH)winhelo3.hrb $(BUILDPATH)star1.hrb $(BUILDPATH)stars.hrb $(BUILDPATH)star2.hrb \
 							$(BUILDPATH)lines.hrb $(BUILDPATH)walk.hrb \
@@ -177,8 +165,6 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)hello.hrb to:@: \
 		copy from:$(BUILDPATH)hello2.hrb to:@: \
 		copy from:$(BUILDPATH)a.hrb to:@: \
-		copy from:$(BUILDPATH)bug1.hrb to:@: \
-		copy from:$(BUILDPATH)bug2.hrb to:@: \
 		copy from:$(BUILDPATH)hello3.hrb to:@: \
 		copy from:$(BUILDPATH)hello4.hrb to:@: \
 		copy from:$(BUILDPATH)hello5.hrb to:@: \
