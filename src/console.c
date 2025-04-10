@@ -32,8 +32,6 @@
  * @param memtotal		内存地址
  */
 void console_task(struct SHEET *sheet, unsigned int memtotal){
-	// 界面刷新定时器
-	struct TIMER *timer;
 	// 获取当前任务的地址
 	struct TASK *task = task_now();
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
@@ -53,9 +51,9 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	char cmdline[30];
 
 	fifo32_init(&task->fifo, 128, fifobuf, task);
-	timer = timer_alloc();
-	timer_init(timer, &task->fifo, 1);
-	timer_settime(timer, 50);
+	cons.timer = timer_alloc();
+	timer_init(cons.timer, &task->fifo, 1);
+	timer_settime(cons.timer, 50);
 
 	file_readfat(fat, (unsigned char *)(ADR_DISKIMG + 0x000200));
 
@@ -75,18 +73,18 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 			// 光标定时器
 			if (i <= 1) {
 				if (i == 1) {
-					timer_init(timer, &task->fifo, 0);
+					timer_init(cons.timer, &task->fifo, 0);
 					if (cons.cur_c >= 0) {
 						cons.cur_c = COL8_FFFFFF;
 					}
 				}
 				else {
-					timer_init(timer, &task->fifo, 1);
+					timer_init(cons.timer, &task->fifo, 1);
 					if (cons.cur_c >= 0) {
 						cons.cur_c = COL8_000000;
 					}
 				}
-				timer_settime(timer, 50);
+				timer_settime(cons.timer, 50);
 			}
 			// 打开光标
 			else if (i == 2) {
@@ -593,6 +591,50 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	// EBX = 窗口句柄
 	else if (edx == 14) {
 		sheet_free(((struct SHEET *)ebx));
+	}
+	// 键盘输入api
+	// EDX = 15
+	// EAX = 0 没有键盘输入时返回-1，不休眠
+	//		 1 休眠直到发生键盘输入
+	// EAX = 输入的字符编码
+	else if (edx == 15) {
+		int i;
+		for (;;) {
+			io_cli();
+			// fifo为空
+			if (fifo32_status(&task->fifo) == 0) {
+				// 休眠
+				if (eax != 0) {
+					task_sleep(task);
+				}
+				// 不休眠
+				else {
+					io_sti();
+					reg[7] = -1;
+					return 0;
+				}
+			}
+			i = fifo32_get(&task->fifo);
+			io_sti();
+			// 光标定时器
+			if (i <= 1) {
+				timer_init(cons->timer, &task->fifo, 1);
+				timer_settime(cons->timer, 50);
+			}
+			// 打开光标
+			if (i == 2) {
+				cons->cur_c = COL8_FFFFFF;
+			}
+			// 关闭光标
+			else if (i == 3) {
+				cons->cur_c = -1;
+			}
+			// 键盘数据
+			else if (256 <= i && i <= 511) {
+				reg[7] = i - 256;
+				return 0;
+			}
+		}
 	}
 	return 0;
 }

@@ -377,6 +377,7 @@ struct CONSOLE {
 	struct SHEET *sht;
 	// 光标位置，x，y，颜色
 	int cur_x, cur_y, cur_c;
+	struct TIMER *timer;
 };
 void console_task(struct SHEET *sheet, unsigned int memtotal);
 void cons_newline(struct CONSOLE *cons);

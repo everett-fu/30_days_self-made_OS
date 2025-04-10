@@ -8,7 +8,7 @@
 [FILE "a_nask.nas"]
 
     GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin, _api_initmalloc
-    GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin, _api_linewin, _api_closewin
+    GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin, _api_linewin, _api_closewin, _api_getkey
 
 [SECTION .text]
 ; 显示字符
@@ -186,4 +186,11 @@ _api_closewin:          ; void api_closewin(int win);
     MOV     EBX, [ESP + 8]
     INT     0x40
     POP     EBX
+    RET
+
+; 键盘输入api
+_api_getkey:            ; int api_getkey(int mode);
+    MOV     EDX, 15
+    MOV     EAX, [ESP + 4]
+    INT     0x40
     RET
