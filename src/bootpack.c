@@ -54,8 +54,8 @@ void HariMain(void) {
 	// 创建任务a,b
 	struct TASK *task_a, *task_cons;
 
-	// 标志位，用来判断是否按下tab，用来切换任务窗口
-	int key_to = 0;
+	// 标志位，用来判断是否按下tab，用来切换任务窗口，存放任务的地址
+	struct SHEET *key_win;
 	// 标志位，用来判断shift是否按下
 	int key_shift = 0;
 	// 键盘锁定键状态
@@ -150,6 +150,8 @@ void HariMain(void) {
 	cursor_x = 8;
 	// 光标颜色
 	cursor_c = COL8_FFFFFF;
+	// 初始化给窗口a
+	key_win = sht_win;
 
 	// 终端图层
 	sht_cons = sheet_alloc(shtctl);
@@ -170,6 +172,9 @@ void HariMain(void) {
 	task_cons->tss.gs = 1 * 8;
 	*((int *)(task_cons->tss.esp + 4)) = (int)sht_cons;
 	*((int *)(task_cons->tss.esp + 8)) = memtotal;
+	sht_cons->task = task_cons;
+	// 有光标
+	sht_cons->flags |= 0x20;
 	task_run(task_cons, 2, 2);
 	struct CONSOLE *cons;
 
@@ -214,6 +219,11 @@ void HariMain(void) {
 		else {
 			i = fifo32_get(&fifo);
 			io_sti();
+			// 如果窗口被关闭，则聚焦到最上层一个窗口
+			if (key_win->flags == 0) {
+				key_win = shtctl->sheets[shtctl->top - 1];
+				cursor_c = keywin_on(key_win, sht_win, cursor_c);
+			}
 			// 如果有键盘输入，则显示键盘输入
 			if (i >=256 && i <= 511) {
 				// 一般字符
@@ -233,7 +243,7 @@ void HariMain(void) {
 						}
 					}
 					// 给任务a的数据
-					if (key_to == 0) {
+					if (key_win == sht_win) {
 						if (cursor_x < 128) {
 							s[1] = 0;
 							putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
@@ -250,7 +260,7 @@ void HariMain(void) {
 					// 退格键
 					if (i == 256 + 0x0e) {
 						// 任务a
-						if (key_to == 0) {
+						if (key_win == sht_win) {
 							if (cursor_x > 8) {
 								// 把光标的位置变成背景颜色，再改上一个字符的颜色
 								putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
@@ -264,24 +274,14 @@ void HariMain(void) {
 					}
 					// TAB键
 					else if (i == 256 + 0x0f) {
-						if (key_to == 0) {
-							key_to = 1;
-							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 0);
-							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 1);
-							// 不显示光标
-							cursor_c = -1;
-							boxfill8(sht_win->buf, sht_win->bxsize, COL8_FFFFFF, cursor_x, 28, cursor_x + 7, 43);
-							fifo32_put(&task_cons->fifo, 2);
+						int j;
+						cursor_c = keywin_off(key_win, sht_win, cursor_c, cursor_x);
+						j = key_win->height - 1;
+						if (j == 0) {
+							j = shtctl->top - 1;
 						}
-						else {
-							key_to = 0;
-							make_wtitle8(buf_win, sht_win->bxsize, "task_a", 1);
-							make_wtitle8(buf_cons, sht_cons->bxsize, "console", 0);
-							cursor_c = COL8_000000;
-							fifo32_put(&task_cons->fifo, 3);
-						}
-						sheet_refresh(sht_win, 0, 0, sht_win->bxsize, 21);
-						sheet_refresh(sht_cons, 0, 0, sht_cons->bxsize, 21);
+						key_win = shtctl->sheets[j];
+						cursor_c = keywin_on(key_win, sht_win, cursor_c);
 					}
 					// 左Shift ON
 					else if (i == 256 + 0x2a) {
@@ -329,7 +329,7 @@ void HariMain(void) {
 					// 回车键
 					else if (i == 256 + 0x1c) {
 						// 发送到命令行窗口
-						if (key_to == 1) {
+						if (key_win != sht_win) {
 							fifo32_put(&task_cons->fifo, 10 + 256);
 						}
 					}
@@ -377,7 +377,6 @@ void HariMain(void) {
 
 					// 按下左键
 					if ((mdec.btn & 0x01) != 0) {
-						s[1] = 'L';
 						int x, y;
 						int j;
 
@@ -403,11 +402,11 @@ void HariMain(void) {
 										}
 										// 如果点击到关闭按钮，关闭窗口，并结束应用程序
 										else if (x >= sht->bxsize - 21 && x < sht->bxsize - 5 && y >= 5 && y < 19) {
-											if (sht->task != 0) {
+											if ((sht->flags & 0x10) != 0) {
 												cons = (struct CONSOLE *)*((int *)0xfec);
 												cons_putstr(cons, "\nBreak(mouse):\n");
 												io_cli();
-												task_cons->tss.eax = (int)&task_cons->tss.esp0;
+												task_cons->tss.eax = (int)&(task_cons->tss.esp0);
 												task_cons->tss.eip = (int)asm_end_app;
 												io_sti();
 

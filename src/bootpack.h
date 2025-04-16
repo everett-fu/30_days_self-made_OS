@@ -233,7 +233,7 @@ int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size);
 struct SHEET {
 	// buf: 图层的显存地址
 	unsigned char *buf;
-	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用
+	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用，比特位0x10位置判断窗口是否由应用程序生成，比特位0x20位置判断窗口光标
 	int bxsize, bysize, vx0, vy0, col_inv, height, flags;
 	// 该图层的图层管理器
 	struct SHTCTL *ctl;
@@ -373,6 +373,9 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char ac
 void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+int keywin_off(struct SHEET *key_win, struct SHEET *sht_win, int cur_c, int cur_x);
+int keywin_on(struct SHEET *key_win, struct SHEET *sht_win, int cur_c);
+void change_wtitle8(struct SHEET *sht, char act);
 
 //console.c
 struct CONSOLE {
