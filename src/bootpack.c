@@ -338,6 +338,10 @@ void HariMain(void) {
 						task_cons->tss.eip = (int)asm_end_app;
 						io_sti();
 					}
+					// 切换窗口
+					else if (i == 256 + 0x57 && shtctl->top > 2) {
+						sheet_updown(shtctl->sheets[1], shtctl->top - 1);
+					}
 				}
 				// 重新显示光标
 				if (cursor_c >= 0) {
