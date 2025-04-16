@@ -32,6 +32,10 @@ void HariMain(void) {
 	int i;
 	// 鼠标数据
 	struct MOUSE_DEC mdec;
+	// 鼠标移动差值
+	int mmx = -1, mmy = -1;
+	// 鼠标当前点击的图层
+	struct SHEET *sht = 0;
 	// 内存总数
 	unsigned int memtotal;
 	// 内存管理结构体
@@ -353,37 +357,6 @@ void HariMain(void) {
 			else if (i >= 512 && i <=767) {
 				// 如果鼠标的数据接收完全
 				if (mouse_decode(&mdec, i - 512) != 0) {
-					if ((mdec.btn & 0x01) != 0) {
-						s[1] = 'L';
-//						sheet_slide(sht_win, mx - 80, my -8);
-
-						int x, y;
-						int j;
-						struct SHEET *sht;
-						// 从上往下遍历窗口
-						for (j = shtctl->top -1; j > 0; j--) {
-							sht = shtctl->sheets[j];
-							// 计算鼠标在该图层的偏移量
-							x = mx - sht->vx0;
-							y = my - sht->vy0;
-							// 如果鼠标在窗口范围内
-							if (x >= 0 && x <= sht->bxsize && y >= 0 && y <= sht->bysize) {
-								// 不是透明区域
-								if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
-									// 设置图层高度为除鼠标的最高层
-									sheet_updown(sht, shtctl->top -1);
-									break;
-								}
-							}
-						}
-					}
-					if ((mdec.btn & 0x02) != 0) {
-						s[3] = 'R';
-					}
-					if ((mdec.btn & 0x04) != 0) {
-						s[2] = 'C';
-					}
-
 					// 鼠标指针的移动
 					mx += mdec.x;
 					my += mdec.y;
@@ -401,6 +374,58 @@ void HariMain(void) {
 					}
 					// 显示鼠标
 					sheet_slide(sht_mouse, mx, my);
+
+					// 按下左键
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+						int x, y;
+						int j;
+
+						// 没有点击到窗口栏
+						if (mmx < 0) {
+							// 从上往下遍历窗口
+							for (j = shtctl->top -1; j > 0; j--) {
+								sht = shtctl->sheets[j];
+								// 计算鼠标在该图层的偏移量
+								x = mx - sht->vx0;
+								y = my - sht->vy0;
+								// 如果鼠标在窗口范围内
+								if (x >= 0 && x < sht->bxsize && y >= 0 && y < sht->bysize) {
+									// 不是透明区域
+									if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
+										// 设置图层高度为除鼠标的最高层
+										sheet_updown(sht, shtctl->top - 1);
+										// 如果光标是在标题栏
+										if (x >= 3 && x < sht->bxsize - 3 && y >= 3 && y < 21) {
+											// 记录当前鼠标的位置
+											mmx = mx;
+											mmy = my;
+										}
+										break;
+									}
+								}
+							}
+						}
+						else {
+							// 当进入这个条件时，鼠标一定按下，并且一定在窗口栏上
+							// 这里的mx，my是鼠标是现在窗口上的坐标，与上面的if里的mx，my不是同一个
+							// 这个的X，Y是两次鼠标坐标差值
+							x = mx - mmx;
+							y = my - mmy;
+							sheet_slide(sht, sht->vx0 + x, sht->vy0 + y);
+							mmx = mx;
+							mmy = my;
+						}
+					}
+					else {
+						mmx = -1;
+					}
+//					if ((mdec.btn & 0x02) != 0) {
+//						s[3] = 'R';
+//					}
+//					if ((mdec.btn & 0x04) != 0) {
+//						s[2] = 'C';
+//					}
 				}
 			}
 			// 光标寄存器
