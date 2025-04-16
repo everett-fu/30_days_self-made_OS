@@ -395,11 +395,23 @@ void HariMain(void) {
 									if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
 										// 设置图层高度为除鼠标的最高层
 										sheet_updown(sht, shtctl->top - 1);
-										// 如果光标是在标题栏
-										if (x >= 3 && x < sht->bxsize - 3 && y >= 3 && y < 21) {
+										// 如果光标是在标题栏，并且不在关闭按钮上
+										if (x >= 3 && x < sht->bxsize - 21 && y >= 3 && y < 21) {
 											// 记录当前鼠标的位置
 											mmx = mx;
 											mmy = my;
+										}
+										// 如果点击到关闭按钮，关闭窗口，并结束应用程序
+										else if (x >= sht->bxsize - 21 && x < sht->bxsize - 5 && y >= 5 && y < 19) {
+											if (sht->task != 0) {
+												cons = (struct CONSOLE *)*((int *)0xfec);
+												cons_putstr(cons, "\nBreak(mouse):\n");
+												io_cli();
+												task_cons->tss.eax = (int)&task_cons->tss.esp0;
+												task_cons->tss.eip = (int)asm_end_app;
+												io_sti();
+
+											}
 										}
 										break;
 									}
