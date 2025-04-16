@@ -1,6 +1,6 @@
 .idea
 z_tools/
 .clang-format
-./build/
-./images/
+/build/
+/images/
 .src/app/build/
