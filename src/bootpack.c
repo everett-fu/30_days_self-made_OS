@@ -394,6 +394,14 @@ void HariMain(void) {
 									if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
 										// 设置图层高度为除鼠标的最高层
 										sheet_updown(sht, shtctl->top - 1);
+										// 鼠标所指的图层不是现在高亮窗口
+										if (sht != key_win) {
+											// 使现在高亮窗口变黑
+											cursor_c = keywin_off(key_win, sht_win, cursor_c, cursor_x);
+											// 使鼠标所指的窗口变亮
+											key_win = sht;
+											cursor_c = keywin_on(key_win, sht_win, cursor_c);
+										}
 										// 如果光标是在标题栏，并且不在关闭按钮上
 										if (x >= 3 && x < sht->bxsize - 21 && y >= 3 && y < 21) {
 											// 记录当前鼠标的位置
