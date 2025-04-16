@@ -235,7 +235,9 @@ struct SHEET {
 	unsigned char *buf;
 	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用
 	int bxsize, bysize, vx0, vy0, col_inv, height, flags;
+	// 该图层的图层管理器
 	struct SHTCTL *ctl;
+	// 使用该图层的进程
 	struct TASK *task;
 };
 struct SHTCTL {
