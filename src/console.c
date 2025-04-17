@@ -415,6 +415,8 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 					sheet_free(sht);
 				}
 			}
+			// 关闭程序时判断定时器自动关闭定时器
+			timer_cancelall(&task->fifo);
 			// 释放数据段
 			memman_free_4k(memman, (int) q, segsiz);
 		} else {
@@ -652,6 +654,7 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	// EAX = 定时器句柄（由操作系统返回）
 	else if (edx == 16){
 		reg[7] = (int)timer_alloc();
+		((struct TIMER *)reg[7])->flags2 = 1;
 	}
 	// 设置定时器发送的数据
 	// EDX = 17

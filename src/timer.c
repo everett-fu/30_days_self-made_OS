@@ -108,6 +108,7 @@ struct TIMER * timer_alloc(void) {
 	for (i = 0; i < MAX_TIMER; i++) {
 		if (timerctl.timers0[i].flags == TIMER_FLAGS_CLOSE) {
 			timerctl.timers0[i].flags = TIMER_FLAGS_ALLOC;
+			timerctl.timers0[i].flags2 = 0;
 			return &timerctl.timers0[i];
 		}
 	}
@@ -173,4 +174,64 @@ void timer_settime(struct TIMER *timer, unsigned int timeout) {
 		}
 		t = t_next;
 	}
+}
+
+/**
+ * 取消定时器
+ * @timer		要取消的定时器地址
+ * @return		取消成功返回1，取消失败返回0
+ */
+int timer_cancel(struct TIMER *timer) {
+	int e;
+	struct TIMER *t;
+	e = io_load_eflags();
+	io_cli();
+	// 如果定时器正在使用
+	if (timer->flags == TIMER_FLAGS_USING) {
+		// 如果是第一个定时器
+		if (timer == timerctl.timer_head) {
+			t = timer->next_timer;
+			timerctl.timer_head = t;
+			timerctl.next_timeout = t->timeout;
+		}
+		else {
+			t = timerctl.timer_head;
+			// 找到前一个定时器
+			for (;;) {
+				if (t->next_timer == timer) {
+					break;
+				}
+				t = t->next_timer;
+			}
+			// 将前一个定时器的下一个定时器指向当前定时器的下一个定时器
+			t->next_timer = timer->next_timer;
+		}
+		timer->flags = TASK_FLAGS_ALLOC;
+		io_store_eflags(e);
+		return 1;
+	}
+	io_store_eflags(e);
+	return 0;
+}
+
+/**
+ * 自动检查是否要取消定时器
+ * @fifo		要取消的定时器的FIFO缓冲区
+ */
+void timer_cancelall(struct FIFO32 *fifo) {
+	int e, i;
+	struct TIMER *t;
+	e = io_load_eflags();
+	io_cli();
+	// 遍历所有的定时器
+	for (i = 0; i < MAX_TIMER; i++) {
+		t = &timerctl.timers0[i];
+		// 如果定时器正在使用，并且定时器的flags2不为0，说明该定时器是自动取消的
+		if (t->flags != TIMER_FLAGS_CLOSE && t->flags2 != 0 && t->fifo == fifo) {
+			timer_cancel(t);
+			timer_free(t);
+		}
+	}
+	io_store_eflags(e);
+	return;
 }
