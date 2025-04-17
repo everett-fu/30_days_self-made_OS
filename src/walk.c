@@ -20,6 +20,7 @@ void api_end(void);
 void api_closewin(int win);
 int api_getkey(int mode);
 void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_putstrwin(int win, int x, int y, int col, int len, char *str);
 
 void HariMain(void) {
 	char *buf;

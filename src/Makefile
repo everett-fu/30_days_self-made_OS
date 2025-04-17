@@ -151,11 +151,17 @@ $(BUILDPATH)walk.bim : $(BUILDPATH)walk.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)walk.hrb : $(BUILDPATH)walk.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)walk.bim $(BUILDPATH)walk.hrb 100k
 
+$(BUILDPATH)noodle.bim : $(BUILDPATH)noodle.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)noodle.bim stack:1k map:$(BUILDPATH)noodle.map $(BUILDPATH)noodle.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)noodle.hrb : $(BUILDPATH)noodle.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)noodle.bim $(BUILDPATH)noodle.hrb 100k
+
 $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
 							$(BUILDPATH)a.hrb $(BUILDPATH)hello3.hrb \
 							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb $(BUILDPATH)winhelo.hrb $(BUILDPATH)winhelo2.hrb \
 							$(BUILDPATH)winhelo3.hrb $(BUILDPATH)star1.hrb $(BUILDPATH)stars.hrb $(BUILDPATH)star2.hrb \
-							$(BUILDPATH)lines.hrb $(BUILDPATH)walk.hrb \
+							$(BUILDPATH)lines.hrb $(BUILDPATH)walk.hrb $(BUILDPATH)noodle.hrb\
 							Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
@@ -176,6 +182,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)star2.hrb to:@: \
 		copy from:$(BUILDPATH)lines.hrb to:@: \
 		copy from:$(BUILDPATH)walk.hrb to:@: \
+		copy from:$(BUILDPATH)noodle.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ

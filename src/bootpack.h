@@ -233,9 +233,11 @@ int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size);
 struct SHEET {
 	// buf: 图层的显存地址
 	unsigned char *buf;
-	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用
+	// bxsize: 图层的x分辨率，bysize: 图层的y分辨率，vx0: 图层的x坐标，vy0: 图层的y坐标，col_inv: 图层的透明色，height: 图层的高度，flags: 图层是否被使用，比特位0x10位置判断窗口是否由应用程序生成，比特位0x20位置判断窗口光标
 	int bxsize, bysize, vx0, vy0, col_inv, height, flags;
+	// 该图层的图层管理器
 	struct SHTCTL *ctl;
+	// 使用该图层的进程
 	struct TASK *task;
 };
 struct SHTCTL {
@@ -265,8 +267,12 @@ void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, in
 struct TIMER {
 	// 指向下一个定时器的指针
 	struct TIMER *next_timer;
-	// 每个定时器超时时间,该定时器状态
-	unsigned int timeout, flags;
+	// 每个定时器超时时间
+	unsigned int timeout;
+	// 该定时器状态
+	char flags;
+	// 应用程序结束以后是否自动取消定时器标记，为1会自动关闭，为0不会自动关闭
+	char flags2;
 	// 每个定时器超时以后需要发送数据到的缓冲区
 	struct FIFO32 *fifo;
 	// 每个定时器超时以后需要发送的数据
@@ -289,6 +295,8 @@ struct TIMER * timer_alloc(void);
 void timer_free(struct TIMER *timer);
 void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
 void timer_settime(struct TIMER *timer, unsigned int timeout);
+int timer_cancel(struct TIMER *timer);
+void timer_cancelall(struct FIFO32 *fifo);
 
 // mtask.c
 // 最大任务数量
@@ -371,6 +379,9 @@ void make_window8(unsigned char *buf, int xsize, int ysize, char *title, char ac
 void make_wtitle8(unsigned char *buf, int xsize, char *title, char act);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+int keywin_off(struct SHEET *key_win, struct SHEET *sht_win, int cur_c, int cur_x);
+int keywin_on(struct SHEET *key_win, struct SHEET *sht_win, int cur_c);
+void change_wtitle8(struct SHEET *sht, char act);
 
 //console.c
 struct CONSOLE {

@@ -411,10 +411,12 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 			// 关闭程序时检查图层有没有关闭
 			for (i = 0; i < MAX_SHEETS; i++) {
 				sht = &(shtctl->sheets0[i]);
-				if (sht->flags != 0 && sht->task == task) {
+				if ((sht->flags & 0x11) == 0x11 && sht->task == task) {
 					sheet_free(sht);
 				}
 			}
+			// 关闭程序时判断定时器自动关闭定时器
+			timer_cancelall(&task->fifo);
 			// 释放数据段
 			memman_free_4k(memman, (int) q, segsiz);
 		} else {
@@ -502,6 +504,7 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	else if (edx == 5) {
 		sht = sheet_alloc(shtctl);
 		sht->task = task;
+		sht->flags |= 0x10;
 		sheet_setbuf(sht, (char *)ebx + ds_base, esi, edi, eax);
 		make_window8((char *)ebx + ds_base, esi, edi, (char *)ecx + ds_base, 0);
 		sheet_slide(sht, 100, 50);
@@ -640,11 +643,38 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 				cons->cur_c = -1;
 			}
 			// 键盘数据
-			else if (256 <= i && i <= 511) {
+			else if (256 <= i) {
 				reg[7] = i - 256;
 				return 0;
 			}
 		}
+	}
+	// 获取定时器api
+	// EDX = 16
+	// EAX = 定时器句柄（由操作系统返回）
+	else if (edx == 16){
+		reg[7] = (int)timer_alloc();
+		((struct TIMER *)reg[7])->flags2 = 1;
+	}
+	// 设置定时器发送的数据
+	// EDX = 17
+	// EBX = 定时器句柄
+	// EAX = 数据
+	else if (edx == 17) {
+		timer_init((struct TIMER *)ebx, &task->fifo, eax + 256);
+	}
+	// 设置定时器时间
+	// EDX = 18
+	// EBX = 定时器句柄
+	// EAX = 时间
+	else if (edx == 18) {
+		timer_settime((struct TIMER *)ebx, eax);
+	}
+	// 释放定时器
+	// EDX = 19
+	// EBX = 定时器句柄
+	else if (edx == 19) {
+		timer_free((struct TIMER *)ebx);
 	}
 	return 0;
 }
