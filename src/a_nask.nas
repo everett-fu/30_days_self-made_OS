@@ -9,6 +9,7 @@
 
     GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin, _api_initmalloc
     GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin, _api_linewin, _api_closewin, _api_getkey
+    GLOBAL _api_alloctimer, _api_inittimer, _api_settimer, _api_freetimer
 
 [SECTION .text]
 ; 显示字符
@@ -193,4 +194,39 @@ _api_getkey:            ; int api_getkey(int mode);
     MOV     EDX, 15
     MOV     EAX, [ESP + 4]
     INT     0x40
+    RET
+
+; 获取一个新的定时器
+_api_alloctimer:        ; int api_alloctimer(void);
+    MOV     EDX, 16
+    INT     0x40
+    RET
+
+; 设置定时器发送的数据
+_api_inittimer:         ; void api_inittimer(struct TIMER timer, int data);
+    PUSH    EBX
+    MOV     EDX, 17
+    MOV     EBX, [ESP + 8]
+    MOV     EAX, [ESP + 12]
+    INT     0x40
+    POP     EBX
+    RET
+
+; 设置定时器时间
+_api_settimer:          ; void api_settimer(struct TIMER timer, int timeout);
+    PUSH    EBX
+    MOV     EDX, 18
+    MOV     EBX, [ESP + 8]
+    MOV     EAX, [ESP + 12]
+    INT     0x40
+    POP     EBX
+    RET
+
+; 释放定时器
+_api_freetimer:         ; void api_freetimer(struct TIMER timer);
+    PUSH    EBX
+    MOV     EDX, 19
+    MOV     EBX, [ESP + 8]
+    INT     0x40
+    POP     EBX
     RET

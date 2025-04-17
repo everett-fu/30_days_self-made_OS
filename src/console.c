@@ -641,11 +641,37 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 				cons->cur_c = -1;
 			}
 			// 键盘数据
-			else if (256 <= i && i <= 511) {
+			else if (256 <= i) {
 				reg[7] = i - 256;
 				return 0;
 			}
 		}
+	}
+	// 获取定时器api
+	// EDX = 16
+	// EAX = 定时器句柄（由操作系统返回）
+	else if (edx == 16){
+		reg[7] = (int)timer_alloc();
+	}
+	// 设置定时器发送的数据
+	// EDX = 17
+	// EBX = 定时器句柄
+	// EAX = 数据
+	else if (edx == 17) {
+		timer_init((struct TIMER *)ebx, &task->fifo, eax + 256);
+	}
+	// 设置定时器时间
+	// EDX = 18
+	// EBX = 定时器句柄
+	// EAX = 时间
+	else if (edx == 18) {
+		timer_settime((struct TIMER *)ebx, eax);
+	}
+	// 释放定时器
+	// EDX = 19
+	// EBX = 定时器句柄
+	else if (edx == 19) {
+		timer_free((struct TIMER *)ebx);
 	}
 	return 0;
 }
