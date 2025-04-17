@@ -9,7 +9,7 @@
 
     GLOBAL _api_putchar, _api_end, _api_putstr, _api_openwin, _api_putstrwin, _api_boxfilwin, _api_initmalloc
     GLOBAL _api_malloc, _api_free, _api_point, _api_refreshwin, _api_linewin, _api_closewin, _api_getkey
-    GLOBAL _api_alloctimer, _api_inittimer, _api_settimer, _api_freetimer
+    GLOBAL _api_alloctimer, _api_inittimer, _api_settimer, _api_freetimer, _api_beep
 
 [SECTION .text]
 ; 显示字符
@@ -229,4 +229,11 @@ _api_freetimer:         ; void api_freetimer(struct TIMER timer);
     MOV     EBX, [ESP + 8]
     INT     0x40
     POP     EBX
+    RET
+
+; 蜂鸣器发声
+_api_beep:              ; void api_beep(int tone);
+    MOV     EDX, 20
+    MOV     EAX, [ESP + 4]
+    INT     0x40
     RET
