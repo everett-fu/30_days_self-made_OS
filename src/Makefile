@@ -175,12 +175,18 @@ $(BUILDPATH)color.bim : $(BUILDPATH)color.obj $(BUILDPATH)a_nask.obj Makefile
 $(BUILDPATH)color.hrb : $(BUILDPATH)color.bim Makefile
 	$(BIM2HRB) $(BUILDPATH)color.bim $(BUILDPATH)color.hrb 100k
 
+$(BUILDPATH)color2.bim : $(BUILDPATH)color2.obj $(BUILDPATH)a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:$(BUILDPATH)color2.bim stack:1k map:$(BUILDPATH)color2.map $(BUILDPATH)color2.obj $(BUILDPATH)a_nask.obj
+
+$(BUILDPATH)color2.hrb : $(BUILDPATH)color2.bim Makefile
+	$(BIM2HRB) $(BUILDPATH)color2.bim $(BUILDPATH)color2.hrb 100k
+
 $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUILDPATH)hello.hrb $(BUILDPATH)hello2.hrb \
 							$(BUILDPATH)a.hrb $(BUILDPATH)hello3.hrb \
 							$(BUILDPATH)hello4.hrb $(BUILDPATH)hello5.hrb $(BUILDPATH)winhelo.hrb $(BUILDPATH)winhelo2.hrb \
 							$(BUILDPATH)winhelo3.hrb $(BUILDPATH)star1.hrb $(BUILDPATH)stars.hrb $(BUILDPATH)star2.hrb \
 							$(BUILDPATH)lines.hrb $(BUILDPATH)walk.hrb $(BUILDPATH)noodle.hrb $(BUILDPATH)beepdown.hrb \
-							$(BUILDPATH)beepup.hrb $(BUILDPATH)color.hrb\
+							$(BUILDPATH)beepup.hrb $(BUILDPATH)color.hrb $(BUILDPATH)color2.hrb \
 							Makefile
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:$(BUILDPATH)ipl10.bin len:512 from:0 to:0 \
@@ -205,6 +211,7 @@ $(IMAGESPATH)haribote.img : $(BUILDPATH)ipl10.bin $(BUILDPATH)haribote.sys $(BUI
 		copy from:$(BUILDPATH)beepdown.hrb to:@: \
 		copy from:$(BUILDPATH)beepup.hrb to:@: \
 		copy from:$(BUILDPATH)color.hrb to:@: \
+		copy from:$(BUILDPATH)color2.hrb to:@: \
 		imgout:$(IMAGESPATH)haribote.img
 
 # C -> GAS -> NAS -> OBJ
