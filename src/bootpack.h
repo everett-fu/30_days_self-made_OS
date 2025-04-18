@@ -337,6 +337,10 @@ struct TASK {
 	struct FIFO32 fifo;
 	// 任务状态相关的段
 	struct TSS32 tss;
+	// 任务图层
+	struct CONSOLE *cons;
+	// 任务数据段
+	int ds_base;
 };
 
 // 任务队列
