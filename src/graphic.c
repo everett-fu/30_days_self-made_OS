@@ -44,6 +44,21 @@ void init_palette(void) {
 			0x84, 0x84, 0x84        // 暗灰
 	};
 	set_palette(0, 15, table_rgb);
+
+	// 6色阶模式，即rgb值的范围为0~5
+	unsigned char table2[216 * 3];
+	int r, g, b;
+	for (b = 0; b < 6; b++) {
+		for (g = 0; g < 6; g++) {
+			for (r = 0; r < 6; r++) {
+				// 这里*51的原因是采用的6色阶模式，要从6色阶映射到255色阶
+				table2[(r + g * 6 + b * 36) * 3 + 0] = r * 51;
+				table2[(r + g * 6 + b * 36) * 3 + 1] = g * 51;
+				table2[(r + g * 6 + b * 36) * 3 + 2] = b * 51;
+			}
+		}
+	}
+	set_palette(16, 231, table2);
 	return;
 }
 
@@ -61,7 +76,7 @@ void set_palette(int start, int end, unsigned char *rgb) {
 	// 屏蔽中断
 	io_cli();
 	io_out8(0x03c8, start);
-	// 导入0到15号颜色
+	// 导入颜色
 	for (i = start; i <= end; i++) {
 		io_out8(0x03c9, rgb[0] / 4);
 		io_out8(0x03c9, rgb[1] / 4);
