@@ -44,15 +44,15 @@ void HariMain(void) {
 	// 图层控制器
 	struct SHTCTL *shtctl;
 	// 背景图层，鼠标图层，窗口图层，终端窗口图层
-	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons;
+	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons[2];
 	// 背景图层缓冲区，鼠标图层缓冲区，窗口图层缓冲区，终端窗口图层缓冲区
-	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_cons;
+	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_cons[2];
 
 	// 光标位置，光标颜色
 	int cursor_x, cursor_c;
 
-	// 创建任务a,b
-	struct TASK *task_a, *task_cons;
+	// 创建任务a，两个终端窗口
+	struct TASK *task_a, *task_cons[2];
 
 	// 标志位，用来判断是否按下tab，用来切换任务窗口，存放任务的地址
 	struct SHEET *key_win;
@@ -105,7 +105,7 @@ void HariMain(void) {
 	// 初始化任务
 	task_a = task_init(memman);
 	fifo.task = task_a;
-	task_run(task_a, 1, 0);
+	task_run(task_a, 1, 2);
 
 	// 初始化调色板
 	init_palette();
@@ -150,32 +150,35 @@ void HariMain(void) {
 	cursor_x = 8;
 	// 光标颜色
 	cursor_c = COL8_FFFFFF;
-	// 初始化给窗口a
-	key_win = sht_win;
 
 	// 终端图层
-	sht_cons = sheet_alloc(shtctl);
-	buf_cons = (unsigned char *)memman_alloc_4k(memman, 256 * 165);
-	sheet_setbuf(sht_cons, buf_cons, 256, 165, -1);
-	make_window8(buf_cons, 256, 165, "console", 0);
-	make_textbox8(sht_cons, 8, 28, 240, 128, COL8_000000);
-	task_cons = task_alloc();
-	// 为任务b的堆栈分配了64kb的内存，并计算出栈底的内存地址
-	task_cons->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 12;
-	// 设置任务b的堆栈信息
-	task_cons->tss.eip = (int) &console_task;
-	task_cons->tss.es = 1 * 8;
-	task_cons->tss.cs = 2 * 8;
-	task_cons->tss.ss = 1 * 8;
-	task_cons->tss.ds = 1 * 8;
-	task_cons->tss.fs = 1 * 8;
-	task_cons->tss.gs = 1 * 8;
-	*((int *)(task_cons->tss.esp + 4)) = (int)sht_cons;
-	*((int *)(task_cons->tss.esp + 8)) = memtotal;
-	sht_cons->task = task_cons;
-	// 有光标
-	sht_cons->flags |= 0x20;
-	task_run(task_cons, 2, 2);
+	for (i = 0; i < 2; i++) {
+		sht_cons[i] = sheet_alloc(shtctl);
+		buf_cons[i] = (unsigned char *)memman_alloc_4k(memman, 256 * 165);
+		sheet_setbuf(sht_cons[i], buf_cons[i], 256, 165, -1);
+		make_window8(buf_cons[i], 256, 165, "console", 0);
+		make_textbox8(sht_cons[i], 8, 28, 240, 128, COL8_000000);
+		task_cons[i] = task_alloc();
+		// 为终端的堆栈分配了64kb的内存，并计算出栈底的内存地址
+		task_cons[i]->tss.esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 12;
+		// 设置终端的堆栈信息
+		task_cons[i]->tss.eip = (int) &console_task;
+		task_cons[i]->tss.es = 1 * 8;
+		task_cons[i]->tss.cs = 2 * 8;
+		task_cons[i]->tss.ss = 1 * 8;
+		task_cons[i]->tss.ds = 1 * 8;
+		task_cons[i]->tss.fs = 1 * 8;
+		task_cons[i]->tss.gs = 1 * 8;
+		*((int *)(task_cons[i]->tss.esp + 4)) = (int)sht_cons[i];
+		*((int *)(task_cons[i]->tss.esp + 8)) = memtotal;
+		task_run(task_cons[i], 2, 2);
+		sht_cons[i]->task = task_cons[i];
+		// 有光标
+		sht_cons[i]->flags |= 0x20;
+	}
+
+	// 初始化给窗口a
+	key_win = sht_win;
 	struct CONSOLE *cons;
 
 	// 背景色填充
@@ -184,12 +187,14 @@ void HariMain(void) {
 	sheet_slide(sht_mouse, mx, my);
 	// 显示窗口
 	sheet_slide(sht_win, 8, 56);
-	sheet_slide(sht_cons, 32, 4);
+	sheet_slide(sht_cons[0], 32, 4);
+	sheet_slide(sht_cons[1], 50, 50);
 	// 设置背景图层高度
 	sheet_updown(sht_back, 0);
 	// 设置窗口图层高度
 	sheet_updown(sht_win, 1);
-	sheet_updown(sht_cons, 1);
+	sheet_updown(sht_cons[0], 1);
+	sheet_updown(sht_cons[1], 1);
 	// 设置鼠标图层高度
 	sheet_updown(sht_mouse, 10);
 
@@ -252,7 +257,7 @@ void HariMain(void) {
 					}
 					// 给任务b的数据
 					else {
-						fifo32_put(&task_cons->fifo, s[0] + 256);
+						fifo32_put(&key_win->task->fifo, s[0] + 256);
 					}
 				}
 				// 其他字符
@@ -264,12 +269,12 @@ void HariMain(void) {
 							if (cursor_x > 8) {
 								// 把光标的位置变成背景颜色，再改上一个字符的颜色
 								putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
-								cursor_x -=8;
+								cursor_x -= 8;
 							}
 						}
 						// 任务b
 						else {
-							fifo32_put(&task_cons->fifo, 8 + 256);
+							fifo32_put(&key_win->task->fifo, 8 + 256);
 						}
 					}
 					// TAB键
@@ -330,16 +335,16 @@ void HariMain(void) {
 					else if (i == 256 + 0x1c) {
 						// 发送到命令行窗口
 						if (key_win != sht_win) {
-							fifo32_put(&task_cons->fifo, 10 + 256);
+							fifo32_put(&key_win->task->fifo, 10 + 256);
 						}
 					}
 					// shift+f1中止应用程序
-					else if (i == 256 + 0x3b && key_shift != 0 && task_cons->tss.ss0 != 0) {
+					else if (i == 256 + 0x3b && key_shift != 0 && task_cons[0]->tss.ss0 != 0) {
 						cons = (struct CONSOLE *)*((int *)0xfec);
 						cons_putstr(cons, "\nBreak(key):\n");
 						io_cli();
-						task_cons->tss.eax = (int)&task_cons->tss.esp0;
-						task_cons->tss.eip = (int)asm_end_app;
+						task_cons[0]->tss.eax = (int)&task_cons[0]->tss.esp0;
+						task_cons[0]->tss.eip = (int)asm_end_app;
 						io_sti();
 					}
 					// 切换窗口
@@ -402,7 +407,7 @@ void HariMain(void) {
 											key_win = sht;
 											cursor_c = keywin_on(key_win, sht_win, cursor_c);
 										}
-										// 如果光标是在标题栏，并且不在关闭按钮上
+										// 如果鼠标是在标题栏，并且不在关闭按钮上
 										if (x >= 3 && x < sht->bxsize - 21 && y >= 3 && y < 21) {
 											// 记录当前鼠标的位置
 											mmx = mx;
@@ -414,8 +419,8 @@ void HariMain(void) {
 												cons = (struct CONSOLE *)*((int *)0xfec);
 												cons_putstr(cons, "\nBreak(mouse):\n");
 												io_cli();
-												task_cons->tss.eax = (int)&(task_cons->tss.esp0);
-												task_cons->tss.eip = (int)asm_end_app;
+												task_cons[0]->tss.eax = (int)&(task_cons[0]->tss.esp0);
+												task_cons[0]->tss.eip = (int)asm_end_app;
 												io_sti();
 
 											}

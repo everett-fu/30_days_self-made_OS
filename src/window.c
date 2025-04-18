@@ -199,18 +199,18 @@ int keywin_on(struct SHEET *key_win, struct SHEET *sht_win, int cur_c) {
  */
 void change_wtitle8(struct SHEET *sht, char act) {
 	int x, y, xsize = sht->bxsize;
-	char c, tc_new, tbc_nex, tc_old, tbc_old, *buf = sht->buf;
+	char c, tc_new, tbc_new, tc_old, tbc_old, *buf = sht->buf;
 	// 窗口标题变黑
 	if (act != 0) {
 		tc_new = COL8_FFFFFF;
-		tbc_nex = COL8_000084;
+		tbc_new = COL8_000084;
 		tc_old = COL8_C6C6C6;
 		tbc_old = COL8_848484;
 	}
 	// 窗口标题变亮
 	else {
 		tc_new = COL8_C6C6C6;
-		tbc_nex = COL8_848484;
+		tbc_new = COL8_848484;
 		tc_old = COL8_FFFFFF;
 		tbc_old = COL8_000084;
 	}
@@ -222,7 +222,7 @@ void change_wtitle8(struct SHEET *sht, char act) {
 				c = tc_new;
 			}
 			else if (c == tbc_old) {
-				c = tbc_nex;
+				c = tbc_new;
 			}
 			buf[y * xsize + x] = c;
 		}
