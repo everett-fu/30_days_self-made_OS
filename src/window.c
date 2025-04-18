@@ -146,27 +146,16 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 /**
  * 关闭窗口
  * @param key_win		窗口
- * @param sht_win		任务a图层
- * @param cur_c			光标颜色
- * @param cur_x			光标位置
  * @return				光标颜色
  */
-int keywin_off(struct SHEET *key_win, struct SHEET *sht_win, int cur_c, int cur_x) {
+void keywin_off(struct SHEET *key_win) {
 	// 使当前窗口变黑
 	change_wtitle8(key_win, 0);
-	// 如果当前窗口为任务a，删除光标
-	if (key_win == sht_win) {
-		// 删除光标
-		cur_c = -1;
-		boxfill8(sht_win->buf, sht_win->bxsize, COL8_FFFFFF, cur_x, 28, cur_x + 7, 43);
+	// 如果使命令窗口为活动窗口，则删除光标
+	if ((key_win->flags & 0x20) != 0) {
+		fifo32_put(&key_win->task->fifo, 3);
 	}
-	else {
-		// 如果使命令窗口为活动窗口，则删除光标
-		if ((key_win->flags & 0x20) != 0) {
-			fifo32_put(&key_win->task->fifo, 3);
-		}
-	}
-	return cur_c;
+	return;
 }
 
 /**
@@ -176,20 +165,14 @@ int keywin_off(struct SHEET *key_win, struct SHEET *sht_win, int cur_c, int cur_
  * @param cur_c		光标颜色
  * @return			光标颜色
  */
-int keywin_on(struct SHEET *key_win, struct SHEET *sht_win, int cur_c) {
+void keywin_on(struct SHEET *key_win) {
 	// 使当前窗口变亮
 	change_wtitle8(key_win, 1);
-	// 如果当前窗口为任务a，显示光标
-	if (key_win == sht_win) {
-		cur_c = COL8_000000;
+	// 如果使命令窗口为活动窗口，则显示光标
+	if ((key_win->flags & 0x20) != 0) {
+		fifo32_put(&key_win->task->fifo, 2);
 	}
-	else {
-		// 如果使命令窗口为活动窗口，则显示光标
-		if ((key_win->flags & 0x20) != 0) {
-			fifo32_put(&key_win->task->fifo, 2);
-		}
-	}
-	return cur_c;
+	return;
 }
 
 /**
@@ -199,18 +182,18 @@ int keywin_on(struct SHEET *key_win, struct SHEET *sht_win, int cur_c) {
  */
 void change_wtitle8(struct SHEET *sht, char act) {
 	int x, y, xsize = sht->bxsize;
-	char c, tc_new, tbc_nex, tc_old, tbc_old, *buf = sht->buf;
+	char c, tc_new, tbc_new, tc_old, tbc_old, *buf = sht->buf;
 	// 窗口标题变黑
 	if (act != 0) {
 		tc_new = COL8_FFFFFF;
-		tbc_nex = COL8_000084;
+		tbc_new = COL8_000084;
 		tc_old = COL8_C6C6C6;
 		tbc_old = COL8_848484;
 	}
 	// 窗口标题变亮
 	else {
 		tc_new = COL8_C6C6C6;
-		tbc_nex = COL8_848484;
+		tbc_new = COL8_848484;
 		tc_old = COL8_FFFFFF;
 		tbc_old = COL8_000084;
 	}
@@ -222,7 +205,7 @@ void change_wtitle8(struct SHEET *sht, char act) {
 				c = tc_new;
 			}
 			else if (c == tbc_old) {
-				c = tbc_nex;
+				c = tbc_new;
 			}
 			buf[y * xsize + x] = c;
 		}

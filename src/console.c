@@ -36,7 +36,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	struct TASK *task = task_now();
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
 	// 缓冲区数据
-	int fifobuf[128];
+	//	int fifobuf[128];
 	// 申请地址空间，用于保存fat表
 	int *fat = (int *)memman_alloc_4k(memman, 4 * 2880);
 	// 临时变量
@@ -46,11 +46,11 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	cons.cur_x = 8;
 	cons.cur_y = 28;
 	cons.cur_c = -1;
-	*((int*) 0x0fec) = (int)&cons;
+	task->cons = &cons;
 	// 临时变量，用于存储字符
 	char cmdline[30];
 
-	fifo32_init(&task->fifo, 128, fifobuf, task);
+	//	fifo32_init(&task->fifo, 128, fifobuf, task);
 	cons.timer = timer_alloc();
 	timer_init(cons.timer, &task->fifo, 1);
 	timer_settime(cons.timer, 50);
@@ -397,16 +397,16 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 			dathrb = *((int *) (p + 0x0014));
 			// 申请数据段
 			q = (char *)memman_alloc_4k(memman, segsiz);
-			*((int *)0xfe8) = (int)q;
+			task->ds_base = (int)q;
 			//1003作为应用程序代码段，1004作为数据段
-			set_segmdesc(gdt + 1003, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
-			set_segmdesc(gdt + 1004, segsiz - 1, (int)q, AR_DATA32_RW + 0x60);
+			set_segmdesc(gdt + task->sel / 8 + 1000, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
+			set_segmdesc(gdt + task->sel / 8 + 2000, segsiz - 1, (int)q, AR_DATA32_RW + 0x60);
 			// 将数据段的内容复制到申请的内存中
 			for (i = 0; i < datsiz; i++) {
 				q[esp + i] = p[dathrb + i];
 			}
 			// 调用应用程序
-			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			start_app(0x1b, task->sel + 1000 * 8, esp, task->sel + 2000 * 8, &(task->tss.esp0));
 			shtctl = (struct SHTCTL *)*((int *)0x0fe4);
 			// 关闭程序时检查图层有没有关闭
 			for (i = 0; i < MAX_SHEETS; i++) {
@@ -468,11 +468,11 @@ void cons_putstr_length(struct CONSOLE *cons, char *s, int l) {
  * @return 			地址值
  */
 int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax) {
-	int ds_base = *((int*)0xfe8);
 	struct TASK *task = task_now();
-	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0x0fec);
+	struct CONSOLE *cons = task->cons;
 	struct SHTCTL *shtctl = (struct SHT_CTL *)*((int *)0x0fe4);
 	struct SHEET *sht;
+	int ds_base = task->ds_base;
 	int *reg = &eax + 1;
 	/*
 	 * reg[0] = edi, reg[]1] = esi, reg[2] = ebp, reg[3] = esp
@@ -507,8 +507,8 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		sht->flags |= 0x10;
 		sheet_setbuf(sht, (char *)ebx + ds_base, esi, edi, eax);
 		make_window8((char *)ebx + ds_base, esi, edi, (char *)ecx + ds_base, 0);
-		sheet_slide(sht, 100, 50);
-		sheet_updown(sht, 3);
+		sheet_slide(sht, (shtctl->xsize - esi) / 2, (shtctl->ysize - edi) / 2);
+		sheet_updown(sht, shtctl->top - 1);
 		reg[7] = (int)sht;
 	}
 	// 窗口上显示字符api
@@ -676,6 +676,23 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 	else if (edx == 19) {
 		timer_free((struct TIMER *)ebx);
 	}
+	// 蜂鸣器发声
+	// EDX = 20
+	else if (edx == 20) {
+		// 频率为零关闭蜂鸣器
+		if (eax == 0) {
+			int i = io_in8(0x61);
+			io_out8(0x61, i & 0x0d);
+		}
+		else {
+			int i = 1193180000 / eax;
+			io_out8(0x43, 0xb6);
+			io_out8(0x42, i & 0xff);
+			io_out8(0x42, i >> 8);
+			i = io_in8(0x61);
+			io_out8(0x61, (i | 0x03) & 0x0f);
+		}
+	}
 	return 0;
 }
 
@@ -685,8 +702,8 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
  * @return			是否执行成功
  */
 int *inthandler0d(int *esp) {
-	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0xfec);
 	struct TASK *task = task_now();
+	struct CONSOLE *cons = task->cons;
 	char s[30];
 	cons_putstr(cons, "\nINT 0D:\n General Protected EXception.\n");
 	sprintf(s, "EIP = %08x\n", esp[11]);
@@ -700,8 +717,8 @@ int *inthandler0d(int *esp) {
  * @return			是否执行成功
  */
 int *inthandler0c(int *esp) {
-	struct CONSOLE *cons = (struct CONSOLE *)*((int *)0xfec);
 	struct TASK *task = task_now();
+	struct CONSOLE *cons = task->cons;
 	char s[30];
 	cons_putstr(cons, "\nINT 0C:\n Stack EXception.\n");
 	/*
