@@ -11,7 +11,7 @@
  * - task_run: 将任务添加到tasks的末尾，并将正在运行的任务数加1
  * - task_switch: 切换任务，多重队列算法
  * - task_sleep: 任务休眠
- * - task_now: 返回当前任务的内存地址
+ u - task_now: 返回当前任务的内存地址
  * - task_add: 向任务队列中添加一个任务
  * - task_remove: 从任务列表中删除一个任务
  * - task_switchsub: 决定任务切换的时候要切换到哪个任务列表

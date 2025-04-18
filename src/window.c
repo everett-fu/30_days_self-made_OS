@@ -146,27 +146,16 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 /**
  * 关闭窗口
  * @param key_win		窗口
- * @param sht_win		任务a图层
- * @param cur_c			光标颜色
- * @param cur_x			光标位置
  * @return				光标颜色
  */
-int keywin_off(struct SHEET *key_win, struct SHEET *sht_win, int cur_c, int cur_x) {
+void keywin_off(struct SHEET *key_win) {
 	// 使当前窗口变黑
 	change_wtitle8(key_win, 0);
-	// 如果当前窗口为任务a，删除光标
-	if (key_win == sht_win) {
-		// 删除光标
-		cur_c = -1;
-		boxfill8(sht_win->buf, sht_win->bxsize, COL8_FFFFFF, cur_x, 28, cur_x + 7, 43);
+	// 如果使命令窗口为活动窗口，则删除光标
+	if ((key_win->flags & 0x20) != 0) {
+		fifo32_put(&key_win->task->fifo, 3);
 	}
-	else {
-		// 如果使命令窗口为活动窗口，则删除光标
-		if ((key_win->flags & 0x20) != 0) {
-			fifo32_put(&key_win->task->fifo, 3);
-		}
-	}
-	return cur_c;
+	return;
 }
 
 /**
@@ -176,20 +165,14 @@ int keywin_off(struct SHEET *key_win, struct SHEET *sht_win, int cur_c, int cur_
  * @param cur_c		光标颜色
  * @return			光标颜色
  */
-int keywin_on(struct SHEET *key_win, struct SHEET *sht_win, int cur_c) {
+void keywin_on(struct SHEET *key_win) {
 	// 使当前窗口变亮
 	change_wtitle8(key_win, 1);
-	// 如果当前窗口为任务a，显示光标
-	if (key_win == sht_win) {
-		cur_c = COL8_000000;
+	// 如果使命令窗口为活动窗口，则显示光标
+	if ((key_win->flags & 0x20) != 0) {
+		fifo32_put(&key_win->task->fifo, 2);
 	}
-	else {
-		// 如果使命令窗口为活动窗口，则显示光标
-		if ((key_win->flags & 0x20) != 0) {
-			fifo32_put(&key_win->task->fifo, 2);
-		}
-	}
-	return cur_c;
+	return;
 }
 
 /**

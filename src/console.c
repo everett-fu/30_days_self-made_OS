@@ -36,7 +36,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	struct TASK *task = task_now();
 	struct MEMMAN *memman = (struct MEMMAN *)MEMMAN_ADDR;
 	// 缓冲区数据
-	int fifobuf[128];
+	//	int fifobuf[128];
 	// 申请地址空间，用于保存fat表
 	int *fat = (int *)memman_alloc_4k(memman, 4 * 2880);
 	// 临时变量
@@ -50,7 +50,7 @@ void console_task(struct SHEET *sheet, unsigned int memtotal){
 	// 临时变量，用于存储字符
 	char cmdline[30];
 
-	fifo32_init(&task->fifo, 128, fifobuf, task);
+	//	fifo32_init(&task->fifo, 128, fifobuf, task);
 	cons.timer = timer_alloc();
 	timer_init(cons.timer, &task->fifo, 1);
 	timer_settime(cons.timer, 50);

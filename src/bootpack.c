@@ -23,9 +23,9 @@ void HariMain(void) {
 	char s[40];
 	// 临时变量，用来存储数据与键盘信息
 	int fifobuf[128], keycmd_buf[32];
+	// 命令行缓冲区
+	int *cons_fifo[2];
 
-	// 申请定时器
-	struct TIMER *timer;
 	// 鼠标坐标mx，my
 	int mx, my;
 	// 临时变量
@@ -44,12 +44,9 @@ void HariMain(void) {
 	// 图层控制器
 	struct SHTCTL *shtctl;
 	// 背景图层，鼠标图层，窗口图层，终端窗口图层
-	struct SHEET *sht_back, *sht_mouse, *sht_win, *sht_cons[2];
+	struct SHEET *sht_back, *sht_mouse, *sht_cons[2];
 	// 背景图层缓冲区，鼠标图层缓冲区，窗口图层缓冲区，终端窗口图层缓冲区
-	unsigned char *buf_back, buf_mouse[256], *buf_win, *buf_cons[2];
-
-	// 光标位置，光标颜色
-	int cursor_x, cursor_c;
+	unsigned char *buf_back, buf_mouse[256], *buf_cons[2];
 
 	// 创建任务a，两个终端窗口
 	struct TASK *task_a, *task_cons[2];
@@ -81,11 +78,6 @@ void HariMain(void) {
 	// 向键盘输出的缓冲区
 	fifo32_init(&keycmd, 32, keycmd_buf, 0);
 
-	// 申请定时器，并初始化与设置定时器
-	timer = timer_alloc();
-	timer_init(timer, &fifo, 1);
-	timer_settime(timer, 50);
-
 	// 打开中断
 	io_out8(PIC0_IMR, 0xf8);                // PIC1和键盘许可(11111000)
 	io_out8(PIC1_IMR, 0xef);                // 鼠标许可(11101111)
@@ -105,7 +97,7 @@ void HariMain(void) {
 	// 初始化任务
 	task_a = task_init(memman);
 	fifo.task = task_a;
-	task_run(task_a, 1, 2);
+	task_run(task_a, 0, 2);
 
 	// 初始化调色板
 	init_palette();
@@ -135,22 +127,6 @@ void HariMain(void) {
 	mx = (binfo->scrnx - 16) / 2;
 	my = (binfo->scrny - 28 - 16) / 2;
 
-	// 窗口a图层
-	// 创建窗口图层
-	sht_win = sheet_alloc(shtctl);
-	// 分配窗口图层缓冲区
-	buf_win = (unsigned char *) memman_alloc_4k(memman, 144 * 52);
-	// 设置窗口图层大小和透明色
-	sheet_setbuf(sht_win, buf_win, 144, 52, -1);
-	// 将窗口放置到窗口图层之中
-	make_window8(buf_win, 144, 52, "editor", 1);
-	// 将文本框放置到窗口图层中
-	make_textbox8(sht_win, 8, 28, 128, 16, COL8_FFFFFF);
-	// 光标位置
-	cursor_x = 8;
-	// 光标颜色
-	cursor_c = COL8_FFFFFF;
-
 	// 终端图层
 	for (i = 0; i < 2; i++) {
 		sht_cons[i] = sheet_alloc(shtctl);
@@ -171,32 +147,33 @@ void HariMain(void) {
 		task_cons[i]->tss.gs = 1 * 8;
 		*((int *)(task_cons[i]->tss.esp + 4)) = (int)sht_cons[i];
 		*((int *)(task_cons[i]->tss.esp + 8)) = memtotal;
-		task_run(task_cons[i], 2, 2);
+		task_run(task_cons[i], 1, 2);
 		sht_cons[i]->task = task_cons[i];
 		// 有光标
 		sht_cons[i]->flags |= 0x20;
+		cons_fifo[i] = memman_alloc_4k(memman, 128 * 4);
+		fifo32_init(&task_cons[i]->fifo, 128, cons_fifo[i], task_cons[i]);
 	}
-
-	// 初始化给窗口a
-	key_win = sht_win;
-	struct CONSOLE *cons;
 
 	// 背景色填充
 	sheet_slide(sht_back, 0, 0);
 	// 显示鼠标
 	sheet_slide(sht_mouse, mx, my);
 	// 显示窗口
-	sheet_slide(sht_win, 8, 56);
-	sheet_slide(sht_cons[0], 32, 4);
+	sheet_slide(sht_cons[0], 200, 4);
 	sheet_slide(sht_cons[1], 50, 50);
 	// 设置背景图层高度
 	sheet_updown(sht_back, 0);
 	// 设置窗口图层高度
-	sheet_updown(sht_win, 1);
-	sheet_updown(sht_cons[0], 1);
+	sheet_updown(sht_cons[0], 6);
 	sheet_updown(sht_cons[1], 1);
 	// 设置鼠标图层高度
 	sheet_updown(sht_mouse, 10);
+
+	// 初始化给命令行
+	key_win = sht_cons[0];
+	// 命令行窗口高亮
+	keywin_on(key_win);
 
 	// 为避免与键盘当前状态相冲突，先发送进行一次设置
 	fifo32_put(&keycmd, KEYCMD_LED);
@@ -227,11 +204,11 @@ void HariMain(void) {
 			// 如果窗口被关闭，则聚焦到最上层一个窗口
 			if (key_win->flags == 0) {
 				key_win = shtctl->sheets[shtctl->top - 1];
-				cursor_c = keywin_on(key_win, sht_win, cursor_c);
+				keywin_on(key_win);
 			}
 			// 如果有键盘输入，则显示键盘输入
 			if (i >=256 && i <= 511) {
-				// 一般字符
+				// 一般字符，包含回车与退格符
 				if (i < 256 + 0x80 && keytable0[i - 256] != 0) {
 					// shift没有被按下
 					if (key_shift == 0) {
@@ -247,46 +224,21 @@ void HariMain(void) {
 							s[0] += 0x20;
 						}
 					}
-					// 给任务a的数据
-					if (key_win == sht_win) {
-						if (cursor_x < 128) {
-							s[1] = 0;
-							putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_FFFFFF, COL8_008484, s, 1);
-							cursor_x += 8;
-						}
-					}
-					// 给任务b的数据
-					else {
-						fifo32_put(&key_win->task->fifo, s[0] + 256);
-					}
+					// 发送到命令窗
+					fifo32_put(&key_win->task->fifo, s[0] + 256);
 				}
 				// 其他字符
 				else {
-					// 退格键
-					if (i == 256 + 0x0e) {
-						// 任务a
-						if (key_win == sht_win) {
-							if (cursor_x > 8) {
-								// 把光标的位置变成背景颜色，再改上一个字符的颜色
-								putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
-								cursor_x -= 8;
-							}
-						}
-						// 任务b
-						else {
-							fifo32_put(&key_win->task->fifo, 8 + 256);
-						}
-					}
 					// TAB键
-					else if (i == 256 + 0x0f) {
+					if (i == 256 + 0x0f) {
 						int j;
-						cursor_c = keywin_off(key_win, sht_win, cursor_c, cursor_x);
+						keywin_off(key_win);
 						j = key_win->height - 1;
 						if (j == 0) {
 							j = shtctl->top - 1;
 						}
 						key_win = shtctl->sheets[j];
-						cursor_c = keywin_on(key_win, sht_win, cursor_c);
+						keywin_on(key_win);
 					}
 					// 左Shift ON
 					else if (i == 256 + 0x2a) {
@@ -331,13 +283,6 @@ void HariMain(void) {
 						wait_KBC_sendready();
 						io_out8(PORT_KEYDAT, keycmd_wait);
 					}
-					// 回车键
-					else if (i == 256 + 0x1c) {
-						// 发送到命令行窗口
-						if (key_win != sht_win) {
-							fifo32_put(&key_win->task->fifo, 10 + 256);
-						}
-					}
 					// shift+f1中止应用程序
 					else if (i == 256 + 0x3b && key_shift != 0) {
 						struct TASK *task;
@@ -350,16 +295,11 @@ void HariMain(void) {
 							io_sti();
 						}
 					}
-					// 切换窗口
+					// f11切换窗口
 					else if (i == 256 + 0x57 && shtctl->top > 2) {
 						sheet_updown(shtctl->sheets[1], shtctl->top - 1);
 					}
 				}
-				// 重新显示光标
-				if (cursor_c >= 0) {
-					boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-				}
-				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
 			}
 			// 如果有鼠标输入，则显示鼠标输入
 			else if (i >= 512 && i <=767) {
@@ -405,10 +345,10 @@ void HariMain(void) {
 										// 鼠标所指的图层不是现在高亮窗口
 										if (sht != key_win) {
 											// 使现在高亮窗口变黑
-											cursor_c = keywin_off(key_win, sht_win, cursor_c, cursor_x);
+											keywin_off(key_win);
 											// 使鼠标所指的窗口变亮
 											key_win = sht;
-											cursor_c = keywin_on(key_win, sht_win, cursor_c);
+											keywin_on(key_win);
 										}
 										// 如果鼠标是在标题栏，并且不在关闭按钮上
 										if (x >= 3 && x < sht->bxsize - 21 && y >= 3 && y < 21) {
@@ -426,7 +366,6 @@ void HariMain(void) {
 												task->tss.eax = (int)&(task->tss.esp0);
 												task->tss.eip = (int)asm_end_app;
 												io_sti();
-
 											}
 										}
 										break;
@@ -448,35 +387,6 @@ void HariMain(void) {
 					else {
 						mmx = -1;
 					}
-//					if ((mdec.btn & 0x02) != 0) {
-//						s[3] = 'R';
-//					}
-//					if ((mdec.btn & 0x04) != 0) {
-//						s[2] = 'C';
-//					}
-				}
-			}
-			// 光标寄存器
-			else if (i <= 1) {
-				// 光标闪烁
-				if (i == 1)
-				{
-					timer_init(timer, &fifo, 0);
-					if (cursor_c >= 0)
-					{
-						cursor_c = COL8_000000;
-					}
-				}
-				else {
-					timer_init(timer, &fifo, 1);
-					if (cursor_c >= 0) {
-						cursor_c = COL8_FFFFFF;
-					}
-				}
-				timer_settime(timer, 50);
-				if (cursor_c >= 0) {
-					boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
-					sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
 				}
 			}
 		}
