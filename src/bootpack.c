@@ -339,13 +339,16 @@ void HariMain(void) {
 						}
 					}
 					// shift+f1中止应用程序
-					else if (i == 256 + 0x3b && key_shift != 0 && task_cons[0]->tss.ss0 != 0) {
-						cons = (struct CONSOLE *)*((int *)0xfec);
-						cons_putstr(cons, "\nBreak(key):\n");
-						io_cli();
-						task_cons[0]->tss.eax = (int)&task_cons[0]->tss.esp0;
-						task_cons[0]->tss.eip = (int)asm_end_app;
-						io_sti();
+					else if (i == 256 + 0x3b && key_shift != 0) {
+						struct TASK *task;
+						task = key_win->task;
+						if (task != 0 && task->tss.ss0 != 0) {
+							cons_putstr(task->cons, "\nBreak(key):\n");
+							io_cli();
+							task->tss.eax = (int)&(task->tss.esp0);
+							task->tss.eip = (int)asm_end_app;
+							io_sti();
+						}
 					}
 					// 切换窗口
 					else if (i == 256 + 0x57 && shtctl->top > 2) {
@@ -416,11 +419,12 @@ void HariMain(void) {
 										// 如果点击到关闭按钮，关闭窗口，并结束应用程序
 										else if (x >= sht->bxsize - 21 && x < sht->bxsize - 5 && y >= 5 && y < 19) {
 											if ((sht->flags & 0x10) != 0) {
-												cons = (struct CONSOLE *)*((int *)0xfec);
-												cons_putstr(cons, "\nBreak(mouse):\n");
+												struct TASK *task;
+												task = sht->task;
+												cons_putstr(task->cons, "\nBreak(mouse):\n");
 												io_cli();
-												task_cons[0]->tss.eax = (int)&(task_cons[0]->tss.esp0);
-												task_cons[0]->tss.eip = (int)asm_end_app;
+												task->tss.eax = (int)&(task->tss.esp0);
+												task->tss.eip = (int)asm_end_app;
 												io_sti();
 
 											}

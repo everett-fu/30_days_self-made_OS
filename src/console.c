@@ -399,14 +399,14 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline) {
 			q = (char *)memman_alloc_4k(memman, segsiz);
 			task->ds_base = (int)q;
 			//1003作为应用程序代码段，1004作为数据段
-			set_segmdesc(gdt + 1003, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
-			set_segmdesc(gdt + 1004, segsiz - 1, (int)q, AR_DATA32_RW + 0x60);
+			set_segmdesc(gdt + task->sel / 8 + 1000, finfo->size - 1, (int)p, AR_CODE32_ER + 0x60);
+			set_segmdesc(gdt + task->sel / 8 + 2000, segsiz - 1, (int)q, AR_DATA32_RW + 0x60);
 			// 将数据段的内容复制到申请的内存中
 			for (i = 0; i < datsiz; i++) {
 				q[esp + i] = p[dathrb + i];
 			}
 			// 调用应用程序
-			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			start_app(0x1b, task->sel + 1000 * 8, esp, task->sel + 2000 * 8, &(task->tss.esp0));
 			shtctl = (struct SHTCTL *)*((int *)0x0fe4);
 			// 关闭程序时检查图层有没有关闭
 			for (i = 0; i < MAX_SHEETS; i++) {
